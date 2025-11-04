@@ -555,10 +555,18 @@ python script/query_conversations.py \
 
 The single index file (`bookkeeping/index.json`) contains all metadata:
 
+**Key fields:**
+- `submission_timestamp`: When the job was submitted (saved in config snapshot filename)
+- `execution_timestamp`: When the conversation actually ran
+- `protocol_version`: Schema version (e.g., "2025-11-03")
+- `shared_model_backbone`: Which model definition is used by all agents
+- `agents[].model`: Set to "shared" when using shared backbone
+- `agents[].temperature`, `max_tokens`: Agent-specific sampling parameters
+
 ```json
 {
   "version": "1.0.0",
-  "last_updated": "2025-11-03T12:00:00Z",
+  "last_updated": "2025-11-04T15:30:00Z",
   "conversations": [
     {
       "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -566,12 +574,14 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
       "benchmark_name": "bbq_race",
       "question_id": "042",
       "social_categories": ["race"],
-      "date": "2025-11-03",
       "submission_timestamp": "2025-11-04T12:00:00Z",
-      "transcript_path": "/shared/experiments/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcript/550e8400-e29b-41d4-a716-446655440000.json",
+      "execution_timestamp": "2025-11-04T12:15:00Z",
+      "transcript_path": "/shared/experiment/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcript/550e8400-e29b-41d4-a716-446655440000.json",
       "config_snapshot_path": "bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_race_v2025-11-03_20251104T120000Z.yaml",
+      "protocol_version": "2025-11-03",
       "n_agents": 3,
       "addon_spec": "race",
+      "shared_model_backbone": "llama-3-8b",
       "agents": [
         {
           "agent_id": "speaker_001",
@@ -579,7 +589,9 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
           "persona": "doctor",
           "demographics": "black",
           "as_human": true,
-          "model": "llama-3-8b"
+          "model": "shared",
+          "temperature": 0.7,
+          "max_tokens": 512
         },
         {
           "agent_id": "speaker_002",
@@ -587,7 +599,9 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
           "persona": "doctor",
           "demographics": "white",
           "as_human": true,
-          "model": "llama-3-8b"
+          "model": "shared",
+          "temperature": 0.7,
+          "max_tokens": 512
         },
         {
           "agent_id": "speaker_003",
@@ -595,7 +609,9 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
           "persona": "policy_expert",
           "demographics": null,
           "as_human": true,
-          "model": "llama-3-8b"
+          "model": "shared",
+          "temperature": 0.5,
+          "max_tokens": 512
         }
       ],
       "metadata": {
