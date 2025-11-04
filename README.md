@@ -24,7 +24,7 @@ uv venv
 source .venv/bin/activate
 uv pip install -e .
 
-# 2. Set experiments directory (optional - defaults to <workspace>/experiments)
+# 2. Set experiments directory (recommended, otherwise defaults to <workspace>/experiment)
 export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments/mac_fairness"
 
 # 3. Run an experiment locally or submit to Slurm
@@ -197,7 +197,7 @@ experiment:
   questions_file: data/bbq_race.jsonl
 
   # Experiment parameters (apply to all questions)
-  agent_config_axes: [demographics]  # What agent attributes are varied (demographics, persona, as_human)
+  agent_config_axes: [as_human, demographics]  # What agent attributes are varied (always include as_human)
   max_rounds: 5
   routing_strategy: vanilla
 
@@ -261,25 +261,26 @@ Questions are stored separately in JSONL format (one question per line):
 
 All experiments follow a consistent naming scheme:
 
-`{model_abbr}_{n_agents}agent_as-{human|ai}-{varied_axes}_{PROTOCOL_VERSION}`
+`{model_abbr}_{n_agents}agent_as-{human|ai|hybrid}-{varied_axes}_{PROTOCOL_VERSION}`
 
 Examples:
 
-- `llama3_8b_3agent_as-human-demographics_v2025-11-03` (agents as humans, varying demographics)
-- `qwen2_7b_5agent_as-ai-demographics-persona_v2025-11-03` (agents as AI, varying demographics and persona)
-- `gemma_2b_4agent_as-human-persona_v2025-11-03` (agents as humans, varying persona)
+- `llama3_8b_3agent_as-human-demographics_v2025-11-03` (all agents as humans, varying demographics)
+- `qwen2_7b_5agent_as-ai-demographics-persona_v2025-11-03` (all agents as AI, varying demographics and persona)
+- `gemma_2b_4agent_as-hybrid-persona_v2025-11-03` (mixed human/AI agents, varying persona)
 
 Components:
 
 - **model_abbr**: Short model identifier (e.g., `llama3_8b`)
 - **n_agents**: Number of agents (assumes < 100)
-- **as-{human|ai}-{varied_axes}**: Agent configuration specification (hyphen-separated)
-  - `as-human` or `as-ai`: Agent presentation mode (always present)
-    - `as-human` if agents have `as_human: true` (presented as human actors)
-    - `as-ai` if agents have `as_human: false` (presented as AI assistants)
+- **as-{human|ai|hybrid}-{varied_axes}**: Agent configuration specification (hyphen-separated)
+  - `as-human`, `as-ai`, or `as-hybrid`: Conversation-level agent presentation mode (always present)
+    - `as-human` if all agents have `as_human: true` (all presented as human actors)
+    - `as-ai` if all agents have `as_human: false` (all presented as AI assistants)
+    - `as-hybrid` if agents have mixed `as_human` values (some human, some AI)
   - **varied_axes**: What other axes are varied, hyphen-separated
-    - Possible values: `demographics`, `persona`, or combinations like `demographics-persona`
-    - Only include axes that are actually varied (have different non-null values across agents)
+    - Possible values: `as_human`, `demographics`, `persona`, or combinations like `as_human-demographics-persona`
+    - Only include axes that are actually varied (have different non-null/non-false values across agents)
     - Note: This is different from benchmark category (e.g., bbq_race, bbq_gender)
 - **PROTOCOL_VERSION**: Protocol version with 'v' prefix (e.g., `v2025-11-03`)
   - The 'v' prefix distinguishes protocol version from modification dates
@@ -566,7 +567,8 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
 - `submission_timestamp`: When the job was submitted (saved in config snapshot filename)
 - `execution_timestamp`: When the conversation actually ran
 - `protocol_version`: Schema version (e.g., "2025-11-03")
-- `agent_config_axes`: What agent attributes are varied (e.g., ["demographics"], ["demographics", "persona"])
+- `agent_config_axes`: What agent attributes are varied (always includes "as_human" since it's always defined)
+  - Examples: `["as_human", "demographics"]`, `["as_human", "demographics", "persona"]`
 - `shared_model_backbone`: Which model definition is used by all agents
 - `agents[].model`: Set to "shared" when using shared backbone
 - `agents[].temperature`, `max_tokens`: Agent-specific sampling parameters
@@ -581,7 +583,7 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
       "experiment_name": "llama3_8b_3agent_as-human-demographics_v2025-11-03",
       "benchmark_name": "bbq_race",
       "question_id": "042",
-      "agent_config_axes": ["demographics"],
+      "agent_config_axes": ["as_human", "demographics"],
       "submission_timestamp": "2025-11-04T12:00:00Z",
       "execution_timestamp": "2025-11-04T12:15:00Z",
       "transcript_path": "/shared/experiment/bbq_race/llama3_8b_3agent_as-human-demographics_v2025-11-03/transcript/550e8400-e29b-41d4-a716-446655440000.json",
@@ -668,7 +670,7 @@ routing_strategy: role_based
 
 ### Adding New Model Families
 
-Add to `src/agents/model_factory.py`:
+Add to `src/agent/model_factory.py`:
 
 ```python
 def load_model(model_config: dict):
