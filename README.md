@@ -28,10 +28,10 @@ uv pip install -e .
 export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments/mac_fairness"
 
 # 3. Run an experiment locally or submit to Slurm
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml
 
 # Or submit to Slurm (saves snapshot immediately at queuing time)
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --mode slurm
 
 # 4. Query results
 python script/query_conversations.py --benchmark bbq_race
@@ -62,9 +62,9 @@ python script/query_conversations.py --benchmark bbq_race
 │   ├── index.json                          # Single searchable index of all experiments
 │   └── config_snapshot/                    # Immutable config snapshots from submitted jobs
 │       └── {benchmark}/                    # Organized by benchmark subcategories, e.g., bbq_race
-│           ├── llama3_8b_3agent_demographics_v2025-11-03_20251104T120000Z.yaml
-│           ├── llama3_8b_3agent_demographics_v2025-11-03_20251104T150000Z.yaml
-│           └── qwen2_7b_5agent_demographics_persona_v2025-11-03_20251105T093000Z.yaml
+│           ├── llama3_8b_3agent_as_human-demographics_v2025-11-03_20251104T120000Z.yaml
+│           ├── llama3_8b_3agent_as_human-demographics_v2025-11-03_20251104T150000Z.yaml
+│           └── qwen2_7b_5agent_as_ai-demographics_persona_v2025-11-03_20251105T093000Z.yaml
 │
 ├── experiment/                             # Default transcript storage (if env var not set)
 │   └── {benchmark}/
@@ -74,9 +74,9 @@ python script/query_conversations.py --benchmark bbq_race
 │
 ├── config/                                 # Working configuration files (edit config scratch here)
 │   └── {benchmark}/                        # Organized by benchmark
-│       ├── llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml
-│       ├── qwen2_7b_5agent_demographics_persona_v2025-11-03_scratch.yaml
-│       └── gemma_2b_4agent_persona_as_human_v2025-11-03_scratch.yaml
+│       ├── llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml
+│       ├── qwen2_7b_5agent_as_ai-demographics_persona_v2025-11-03_scratch.yaml
+│       └── gemma_2b_4agent_as_human-persona_v2025-11-03_scratch.yaml
 │
 ├── data/                                   # Benchmark questions (separated according to subcategories)
 │   ├── bbq_race.jsonl
@@ -116,7 +116,7 @@ python script/query_conversations.py --benchmark bbq_race
 - **`src/conversation/manager.py`**: Orchestrates entire experiments
   - Loads and validates experiment configurations
   - Saves immutable config snapshots to `bookkeeping/config_snapshot/{benchmark}/` with timestamps
-  - Snapshot naming: `{experiment_name}_{TIMESTAMP}.yaml` (e.g., `llama3_8b_3agent_demographics_v2025-11-03_20251104T120000Z.yaml`)
+  - Snapshot naming: `{experiment_name}_{TIMESTAMP}.yaml` (e.g., `llama3_8b_3agent_as_human-demographics_v2025-11-03_20251104T120000Z.yaml`)
   - For Slurm jobs: snapshot saved at queuing time (before job runs)
   - For local execution: snapshot saved at start time (before execution begins)
   - Manages agent initialization and conversation rounds
@@ -187,10 +187,10 @@ uv pip install -e .
 Each experiment configuration defines the agent setup and routing strategy that will be applied to ALL questions in a benchmark run:
 
 ```yaml
-# config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml
+# config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml
 experiment:
   # Experiment identification
-  experiment_name: llama3_8b_3agent_demographics_v2025-11-03
+  experiment_name: llama3_8b_3agent_as_human-demographics_v2025-11-03
   benchmark_name: bbq_race
 
   # Questions source (separate file with all benchmark questions)
@@ -261,22 +261,24 @@ Questions are stored separately in JSONL format (one question per line):
 
 All experiments follow a consistent naming scheme:
 
-`{model_abbr}_{n_agents}agent_{agent_config_axes}_{PROTOCOL_VERSION}`
+`{model_abbr}_{n_agents}agent_{as_human|as_ai}-{varied_axes}_{PROTOCOL_VERSION}`
 
 Examples:
 
-- `llama3_8b_3agent_demographics_v2025-11-03` (varying demographics only)
-- `qwen2_7b_5agent_demographics_persona_v2025-11-03` (varying both demographics and persona)
-- `gemma_2b_4agent_persona_as_human_v2025-11-03` (varying persona and as_human)
+- `llama3_8b_3agent_as_human-demographics_v2025-11-03` (agents as humans, varying demographics)
+- `qwen2_7b_5agent_as_ai-demographics_persona_v2025-11-03` (agents as AI, varying demographics and persona)
+- `gemma_2b_4agent_as_human-persona_v2025-11-03` (agents as humans, varying persona)
 
 Components:
 
 - **model_abbr**: Short model identifier (e.g., `llama3_8b`)
 - **n_agents**: Number of agents (assumes < 100)
-- **agent_config_axes**: What axes are varied in agent configs, underscore-separated
-  - Possible values: `demographics`, `persona`, `as_human`
-  - Only include axes that are actually varied (non-null or non-false)
-  - Examples: `demographics`, `demographics_persona`, `persona_as_human`
+- **as_human|as_ai**: Agent presentation mode (always present)
+  - `as_human` if agents have `as_human: true` (presented as human actors)
+  - `as_ai` if agents have `as_human: false` (presented as AI assistants)
+- **varied_axes**: What other axes are varied in agent configs, underscore-separated
+  - Possible values: `demographics`, `persona`, or combinations like `demographics_persona`
+  - Only include axes that are actually varied (have different non-null values across agents)
   - Note: This is different from benchmark category (e.g., bbq_race, bbq_gender)
 - **PROTOCOL_VERSION**: Protocol version with 'v' prefix (e.g., `v2025-11-03`)
   - The 'v' prefix distinguishes protocol version from modification dates
@@ -360,17 +362,17 @@ The framework provides a unified interface for both local execution and Slurm su
 
 ```bash
 # Run locally (snapshot saved at start, then executed immediately)
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml
 
 # Submit to Slurm (snapshot saved at queuing time, safe to edit scratch file immediately after)
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --mode slurm
 
 # Process specific question range (useful for testing or array jobs)
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --range 1-10
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --range 1-10
 
 # With environment variable for transcript storage
 export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments"
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --mode slurm
 ```
 
 ### Execution Flow
@@ -398,15 +400,15 @@ python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2
 
 ```bash
 # Example: Submit multiple jobs, editing config between submissions
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --mode slurm
-# -> Saves: bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_20251104T120000Z.yaml
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --mode slurm
+# -> Saves: bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_20251104T120000Z.yaml
 
 # Snapshot saved immediately! Now safe to edit:
-vim config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml  # Change parameters
+vim config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml  # Change parameters
 
 # Submit another job with updated config
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --mode slurm
-# -> Saves: bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_20251104T150000Z.yaml
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --mode slurm
+# -> Saves: bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_20251104T150000Z.yaml
 ```
 
 ### Custom Slurm Parameters
@@ -417,7 +419,7 @@ For custom SLURM parameters (GPU type, memory, time limits), modify the default 
 export SLURM_GPUS="a100:1"
 export SLURM_MEM="32G"
 export SLURM_TIME="4:00:00"
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --mode slurm
 ```
 
 ---
@@ -430,10 +432,10 @@ Since each experiment runs the same agent configuration across all questions, ba
 
 ```bash
 # Process all questions in benchmark on Slurm
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --mode slurm
 
 # For testing specific ranges locally (without Slurm)
-python script/run_experiment.py config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml --range 1-10
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml --range 1-10
 ```
 
 ### Slurm Array Jobs
@@ -443,7 +445,7 @@ For very large benchmarks, you can use array jobs with the `--array` flag:
 ```bash
 # Submit array job: 10 tasks, each processing 100 questions
 python script/run_experiment.py \
-  config/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_scratch.yaml \
+  config/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_scratch.yaml \
   --mode slurm \
   --array 1-10 \
   --questions-per-task 100
@@ -529,7 +531,7 @@ python script/query_conversations.py --date 2025-11-03
 python script/query_conversations.py --category race
 
 # By experiment
-python script/query_conversations.py --experiment llama3_8b_3agent_demographics_v2025-11-03
+python script/query_conversations.py --experiment llama3_8b_3agent_as_human-demographics_v2025-11-03
 
 # By number of agents
 python script/query_conversations.py --n-agents 3
@@ -575,17 +577,17 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
   "conversations": [
     {
       "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
-      "experiment_name": "llama3_8b_3agent_demographics_v2025-11-03",
+      "experiment_name": "llama3_8b_3agent_as_human-demographics_v2025-11-03",
       "benchmark_name": "bbq_race",
       "question_id": "042",
       "agent_config_axes": ["demographics"],
       "submission_timestamp": "2025-11-04T12:00:00Z",
       "execution_timestamp": "2025-11-04T12:15:00Z",
-      "transcript_path": "/shared/experiment/bbq_race/llama3_8b_3agent_demographics_v2025-11-03/transcript/550e8400-e29b-41d4-a716-446655440000.json",
-      "config_snapshot_path": "bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_demographics_v2025-11-03_20251104T120000Z.yaml",
+      "transcript_path": "/shared/experiment/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03/transcript/550e8400-e29b-41d4-a716-446655440000.json",
+      "config_snapshot_path": "bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03_20251104T120000Z.yaml",
       "protocol_version": "2025-11-03",
       "n_agents": 3,
-      "addon_spec": "demographics",
+      "addon_spec": "as_human-demographics",
       "shared_model_backbone": "llama-3-8b",
       "agents": [
         {
@@ -713,7 +715,7 @@ All transcripts include a `protocol_version` field. When schemas evolve:
 
 ```bash
 python script/validate_transcript.py \
-  --transcript experiment/bbq_race/llama3_8b_3agent_demographics_v2025-11-03/transcript/{uuid}.json \
+  --transcript experiment/bbq_race/llama3_8b_3agent_as_human-demographics_v2025-11-03/transcript/{uuid}.json \
   --schema schema/2025-11-03/conversation.schema.json
 ```
 
