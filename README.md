@@ -11,6 +11,7 @@ A lightweight, Slurm-compatible framework for running multi-agent conversations 
 - [Running Experiments](#running-experiments)
 - [Batch Processing](#batch-processing)
 - [Data Organization](#data-organization)
+- [Benchmark Formatting](#benchmark-formatting)
 - [Extending the Framework](#extending-the-framework)
 - [Schema Versioning](#schema-versioning)
 
@@ -106,7 +107,11 @@ python script/query_conversations.py --benchmark bbq_race
 └── script/                                 # Executable scripts
     ├── run_experiment.py                   # Run full experiment (all questions)
     ├── query_conversations.py              # Query index
-    └── validate_transcript.py              # Schema validator
+    ├── validate_transcript.py              # Schema validator
+    └── formatters/                         # Benchmark data formatters
+        ├── bbq_formatter.py                # Format BBQ benchmark to JSONL
+        ├── discrimeval_formatter.py        # Format DiscrimEval benchmark to JSONL
+        └── utils.py                        # Shared formatting utilities
 ```
 
 ### Directory Purposes
@@ -632,6 +637,82 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
     }
   ]
 }
+```
+
+---
+
+## Benchmark Formatting
+
+### Converting Benchmarks to JSONL
+
+Formatters in `script/formatters/` convert different benchmark datasets into the standardized JSONL format required by the framework:
+
+```bash
+# Format BBQ benchmark
+python script/formatters/bbq_formatter.py \
+  --input raw_data/bbq_race.csv \
+  --output data/bbq_race.jsonl
+
+# Format DiscrimEval benchmark
+python script/formatters/discrimeval_formatter.py \
+  --input raw_data/discrimeval_gender.json \
+  --output data/discrimeval_gender.jsonl
+```
+
+### Required JSONL Format
+
+Each line must be a valid JSON object with these fields:
+
+```json
+{
+  "question_id": "042",
+  "text": "Question text here",
+  "type": "multi_choice",
+  "options": ["A: Option 1", "B: Option 2", "C: Cannot determine"]
+}
+```
+
+**Field specifications:**
+- `question_id` (string): Unique identifier within the benchmark
+- `text` (string): The question text
+- `type` (string): Question type (e.g., "multi_choice", "open_ended")
+- `options` (array, optional): List of answer choices for multi-choice questions
+
+### Adding New Benchmark Formatters
+
+To add a formatter for a new benchmark:
+
+1. Create `script/formatters/{benchmark_name}_formatter.py`
+2. Read the source benchmark format
+3. Convert to standardized JSONL with required fields
+4. Handle benchmark-specific quirks (IDs, text cleaning, etc.)
+5. Save to `data/{benchmark_name}.jsonl`
+
+Example structure:
+
+```python
+# script/formatters/new_benchmark_formatter.py
+import json
+import argparse
+
+def format_benchmark(input_path, output_path):
+    """Convert benchmark to JSONL format."""
+    with open(input_path, 'r') as f_in, open(output_path, 'w') as f_out:
+        for item in read_benchmark(f_in):
+            formatted = {
+                "question_id": item["id"],
+                "text": item["question"],
+                "type": "multi_choice",
+                "options": item["choices"]
+            }
+            f_out.write(json.dumps(formatted) + '\n')
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
+    format_benchmark(args.input, args.output)
 ```
 
 ---
