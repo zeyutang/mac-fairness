@@ -125,8 +125,8 @@ python script/query_conversations.py --benchmark bbq_race
 
 - **`src/conversation/index_manager.py`**: Pure bookkeeping and metadata management
   - Manages the `bookkeeping/index.json` file with thread-safe operations
-  - Adds conversation metadata after each experiment completes
-  - Provides query interface for finding conversations
+  - Adds transcript metadata after each experiment completes
+  - Provides query interface for finding transcripts
   - Handles only lightweight metadata (no full transcripts)
   - Ensures concurrent jobs don't corrupt the index
 
@@ -198,7 +198,7 @@ experiment:
 
   # Experiment parameters (apply to all questions)
   agent_config_axes: [as_human, demographics]  # What agent attributes are varied (always include as_human)
-  max_rounds: 5
+  max_rounds: 3
   routing_strategy: vanilla
 
   # Optional: Use same model for all agents (saves GPU memory)
@@ -386,7 +386,7 @@ python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as-human-demogr
 4. Initialize models once using vLLM
 5. Run each question with the same agent configuration
 6. Save transcripts to `{EXPERIMENTS_ROOT}/{benchmark}/{experiment_name}/transcript/{uuid}.json`
-7. Update `bookkeeping/index.json` with metadata for each conversation (includes snapshot timestamp)
+7. Update `bookkeeping/index.json` with metadata for each transcript (includes snapshot timestamp)
 
 **For Slurm submission** (`--mode slurm`):
 1. **Save config snapshot immediately** with timestamp (at queuing time, before job starts)
@@ -471,7 +471,7 @@ The script automatically:
 The framework automatically optimizes batch processing:
 
 - **Model reuse**: Models loaded once and reused for all questions
-- **Incremental saving**: Each conversation saved immediately (fault-tolerant)
+- **Incremental saving**: Each transcript saved immediately (fault-tolerant)
 - **vLLM optimization**: Continuous batching and KV cache reuse
 
 Choose strategy based on scale (adjust questions per task based on job duration):
@@ -518,7 +518,7 @@ ${PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT}/  # Full transcripts (if env var set)
 - Config snapshots timestamped to prevent overwrites on multiple submissions
 - Question ID mapping maintained in index for fast lookup without special character issues
 
-### Querying Conversations
+### Querying Transcripts
 
 Use the query script with advanced filtering capabilities:
 
@@ -577,9 +577,9 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
 {
   "version": "1.0.0",
   "last_updated": "2025-11-04T15:30:00Z",
-  "conversations": [
+  "transcripts": [
     {
-      "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
+      "transcript_id": "550e8400-e29b-41d4-a716-446655440000",
       "experiment_name": "llama3_8b_3agent_as-human-demographics_v2025-11-03",
       "benchmark_name": "bbq_race",
       "question_id": "042",
