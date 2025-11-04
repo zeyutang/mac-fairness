@@ -27,8 +27,11 @@ uv pip install -e .
 # 2. Set experiments directory (optional - defaults to <workspace>/experiments)
 export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments/mac_fairness"
 
-# 3. Run an experiment (all questions with same agents)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
+# 3. Run an experiment locally or submit to Slurm
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml
+
+# Or submit to Slurm (saves snapshot immediately at queuing time)
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 
 # 4. Query results
 python scripts/query_conversations.py --benchmark bbq_race
@@ -46,7 +49,7 @@ python scripts/query_conversations.py --benchmark bbq_race
 │
 ├── schemas/                                # Protocol schemas (versioned)
 │   ├── index.json                          # Schema version registry
-│   └── 2025-11-03/                         # Current protocol version
+│   └── v2025-11-03/                        # Current protocol version
 │       ├── conversation.schema.json
 │       ├── metadata.schema.json
 │       ├── agent.schema.json
@@ -59,9 +62,9 @@ python scripts/query_conversations.py --benchmark bbq_race
 │   ├── index.json                          # Single searchable index of all experiments
 │   └── experiments_config_snapshot/        # Immutable config snapshots from submitted jobs
 │       └── {benchmark}/                    # Organized by benchmark subcategories, e.g., bbq_race
-│           ├── llama3_8b_3agent_race_2025-11-03.yaml
-│           ├── qwen2_7b_5agent_gender_2025-11-04.yaml
-│           └── gemma_2b_4agent_mixed_2025-11-05.yaml
+│           ├── llama3_8b_3agent_race_v2025-11-03.yaml
+│           ├── qwen2_7b_5agent_gender_v2025-11-04.yaml
+│           └── gemma_2b_4agent_mixed_v2025-11-05.yaml
 │
 ├── experiments/                            # Default transcript storage (if env var not set)
 │   └── {benchmark}/
@@ -71,9 +74,9 @@ python scripts/query_conversations.py --benchmark bbq_race
 │
 ├── config/                                 # Working configuration files (edit config scratch here)
 │   └── {benchmark}/                        # Organized by benchmark
-│       ├── llama3_8b_3agent_race_2025-11-03_scratch.yaml
-│       ├── qwen2_7b_5agent_gender_2025-11-04_scratch.yaml
-│       └── gemma_2b_4agent_mixed_2025-11-05_scratch.yaml
+│       ├── llama3_8b_3agent_race_v2025-11-03_scratch.yaml
+│       ├── qwen2_7b_5agent_gender_v2025-11-04_scratch.yaml
+│       └── gemma_2b_4agent_mixed_v2025-11-05_scratch.yaml
 │
 ├── data/                                   # Benchmark questions (separated according to subcategories)
 │   ├── bbq_race.jsonl
@@ -118,7 +121,9 @@ python scripts/query_conversations.py --benchmark bbq_race
 
 - **`src/conversation/manager.py`**: Orchestrates entire experiments
   - Loads and validates experiment configurations
-  - Saves immutable config snapshots to `bookkeeping/experiments_config_snapshot/{benchmark}/`
+  - Saves immutable config snapshots to `bookkeeping/experiments_config_snapshot/{benchmark}/` at submission/start time
+  - For Slurm jobs: snapshot saved at queuing time (before job runs)
+  - For local execution: snapshot saved at start time (before execution begins)
   - Manages agent initialization and conversation rounds
   - Saves full conversation transcripts
   - Calls `IndexManager` to update the searchable index after completion
@@ -138,10 +143,11 @@ python scripts/query_conversations.py --benchmark bbq_race
   - Version-controlled but expected to change between jobs
   - Edit these freely after jobs are submitted
 
-- **`bookkeeping/`**: Runtime metadata and config snapshots (what has been run)
+- **`bookkeeping/`**: Runtime metadata and config snapshots (what has been submitted/run)
   - `index.json`: Lightweight searchable index of all experiments
   - `experiments_config_snapshot/{benchmark}/`: Immutable snapshots organized by benchmark
-  - Generated automatically when a job is submitted (even if currently in queue)
+  - **For Slurm**: Generated immediately at submission time (queuing time, before job runs)
+  - **For local**: Generated at start of execution (before processing questions)
   - Always stored under `<workspace>` for reproducibility and fast access
 
 - **`experiments/`**: Full transcript output (actual conversation data)
@@ -151,8 +157,10 @@ python scripts/query_conversations.py --benchmark bbq_race
 
 This three-way separation ensures:
 
-1. **Working configs** (`config/*_scratch.yaml`) can be freely edited without affecting queuing/running/completed jobs
+1. **Working configs** (`config/*_scratch.yaml`) can be freely edited after submission without affecting queued/running jobs
 2. **Config snapshots** (`bookkeeping/experiments_config_snapshot/`) provide exact reproducibility
+   - For Slurm: Captured at queuing time, safe to edit scratch immediately
+   - For local: Captured at start time, ensuring consistency throughout execution
 3. **Bookkeeping** provides fast local search without accessing large transcript files
 4. **Transcripts** can be stored on shared/remote storage while keeping metadata local
 
@@ -181,10 +189,10 @@ uv pip install -e .
 Each experiment configuration defines the agent setup and routing strategy that will be applied to ALL questions in a benchmark run:
 
 ```yaml
-# config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
+# config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml
 experiment:
   # Experiment identification
-  experiment_name: llama3_8b_3agent_race_2025-11-03
+  experiment_name: llama3_8b_3agent_race_v2025-11-03
   benchmark_name: bbq_race
 
   # Questions source (separate file with all benchmark questions)
@@ -254,20 +262,20 @@ Questions are stored separately in JSONL format (one question per line):
 
 All experiments follow a consistent naming scheme:
 
-`{model_abbr}_{n_agents}agent_{addon_spec}_{DATE}`
+`{model_abbr}_{n_agents}agent_{addon_spec}_{PROTOCOL_VERSION}`
 
 Examples:
 
-- `llama3_8b_3agent_race_2025-11-03`
-- `qwen2_7b_5agent_gender_2025-11-04`
-- `gemma_2b_4agent_race_and_gender_2025-11-05`
+- `llama3_8b_3agent_race_v2025-11-03`
+- `qwen2_7b_5agent_gender_v2025-11-04`
+- `gemma_2b_4agent_race_and_gender_v2025-11-05`
 
 Components:
 
 - **model_abbr**: Short model identifier (e.g., `llama3_8b`)
 - **n_agents**: Number of agents (assumes < 100)
 - **addon_spec**: Social categories or experimental condition
-- **DATE**: ISO format date (YYYY-MM-DD)
+- **PROTOCOL_VERSION**: Protocol version with 'v' prefix (e.g., `v2025-11-03`)
 
 ### Agent Configuration
 
@@ -326,79 +334,69 @@ Benefits:
 
 ## Running Experiments
 
-### Running a Full Experiment
+### Unified Workflow for Local and Slurm
+
+The framework provides a unified interface for both local execution and Slurm submission:
 
 ```bash
-# Process all questions in benchmark with same agent configuration
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
+# Run locally (snapshot saved at start, then executed immediately)
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml
 
-# Or process specific question range (e.g., if need to look at specific Qs)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml --range 1-10
+# Submit to Slurm (snapshot saved at queuing time, safe to edit scratch file immediately after)
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+
+# Process specific question range (useful for testing or array jobs)
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --range 1-10
 
 # With environment variable for transcript storage
 export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments"
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 ```
 
-The script will:
+### Execution Flow
 
-1. Load the experiment configuration (agents, routing, models)
-2. **Save a snapshot** to `bookkeeping/experiments_config_snapshot/{benchmark}/{experiment_name}.yaml`
+**For local execution** (default):
+1. Load and save config snapshot to `bookkeeping/experiments_config_snapshot/{benchmark}/{experiment_name}.yaml`
+2. Load the snapshot (not scratch file) for execution
 3. Read questions from the specified JSONL file
 4. Initialize models once using vLLM
 5. Run each question with the same agent configuration
 6. Save transcripts to `{EXPERIMENTS_ROOT}/{benchmark}/{experiment_name}/transcripts/{uuid}.json`
 7. Update `bookkeeping/index.json` with metadata for each conversation
 
-**Important Workflow Note:**
+**For Slurm submission** (`--mode slurm`):
+1. **Save config snapshot immediately** (at queuing time, before job starts)
+2. Generate Slurm job script that uses the snapshot
+3. Submit job to Slurm queue
+4. **You can now safely edit the scratch file** without affecting the queued job
+5. When job runs, it uses the snapshot (steps 2-7 above)
 
-There are two approaches for config snapshot timing:
-
-**Option 1 (Illustrative Purpose Only): Snapshot on Job Start** (default `run_experiment.py` behavior)
-
-- Config snapshot is saved when the Python script starts executing
-- If job is queued, changes to scratch file WILL affect it until it starts
-- Simple but requires care when multiple jobs are queued
-
-**Option 2: Snapshot on Job Submission** (recommended for queued jobs)
-
-- Use `scripts/submit_experiment.sh` wrapper instead of direct sbatch
-- Config snapshot is saved immediately upon submission
-- Job uses the snapshot even while queued
-- You can immediately edit the scratch file without affecting queued jobs
+**Key advantage**: Config snapshot is saved at submission time for Slurm jobs, allowing you to:
+- Queue multiple jobs with the same config file name
+- Edit the scratch file immediately after submission
+- Ensure each job uses exactly the config it was submitted with
 
 ```bash
-# Option 1 (Illustrative Purpose Only): Direct submission (snapshot when job RUNS)
-# sbatch job.sh  # Uses config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
-# Warning: Changes to scratch file affect job until it starts running!
+# Example: Submit multiple jobs, editing config between submissions
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 
-# Option 2: Wrapper script (snapshot when job SUBMITTED) - RECOMMENDED
-./scripts/submit_experiment.sh config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
-# -> Snapshot saved immediately to bookkeeping/experiments_config_snapshot/bbq_race/
-# -> You can now safely edit the scratch file!
+# Snapshot saved immediately! Now safe to edit:
+vim config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml  # Change parameters
 
-# After submission with Option 2:
-vim config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml  # Safe to edit immediately
-./scripts/submit_experiment.sh config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml  # Submit another
+# Submit another job with updated config
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 ```
 
-### Slurm Submission
+### Custom Slurm Parameters
 
-Since we're using Option 2 (immediate config snapshots), use the wrapper script:
+For custom SLURM parameters (GPU type, memory, time limits), modify the default parameters in `scripts/run_experiment.py` or pass them via environment variables:
 
 ```bash
-# Direct submission using wrapper script (RECOMMENDED)
-./scripts/submit_experiment.sh config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
+export SLURM_GPUS="a100:1"
+export SLURM_MEM="32G"
+export SLURM_TIME="4:00:00"
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 ```
-
-The wrapper script automatically:
-
-1. Saves config snapshot immediately
-2. Creates appropriate Slurm job script
-3. Submits job using the snapshot (not scratch file)
-4. Allows immediate editing of scratch file
-
-For custom SLURM parameters, modify `scripts/submit_experiment.sh` defaults or create your own wrapper.
 
 ---
 
@@ -409,43 +407,37 @@ For custom SLURM parameters, modify `scripts/submit_experiment.sh` defaults or c
 Since each experiment runs the same agent configuration across all questions, batch processing is built-in:
 
 ```bash
-# Process all questions in benchmark (using wrapper for immediate snapshot)
-./scripts/submit_experiment.sh config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml
+# Process all questions in benchmark on Slurm
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 
 # For testing specific ranges locally (without Slurm)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_2025-11-03_scratch.yaml --range 1-10
+python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --range 1-10
 ```
 
 ### Slurm Array Jobs
 
-For very large benchmarks, you'll need to create a custom array job wrapper:
+For very large benchmarks, you can use array jobs with the `--array` flag:
 
 ```bash
-#!/bin/bash
-# scripts/submit_array_experiment.sh
-#SBATCH --array=1-10
-#SBATCH --gres=gpu:1
+# Submit array job: 10 tasks, each processing 100 questions
+python scripts/run_experiment.py \
+  config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml \
+  --mode slurm \
+  --array 1-10 \
+  --questions-per-task 100
 
-CONFIG_FILE="$1"
-WORKSPACE_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
-
-# Extract experiment info and save snapshot ONCE (only on first array task)
-if [ "$SLURM_ARRAY_TASK_ID" -eq "1" ]; then
-    # Save config snapshot (same logic as submit_experiment.sh)
-    # ... snapshot saving code ...
-fi
-
-# Each array task processes 100 questions
-START=$((($SLURM_ARRAY_TASK_ID - 1) * 100 + 1))
-END=$(($SLURM_ARRAY_TASK_ID * 100))
-
-# Use the snapshot for execution
-python $WORKSPACE_ROOT/scripts/run_experiment.py \
-  "$SNAPSHOT_FILE" \
-  --range ${START}-${END}
+# Each array task will process:
+# Task 1: questions 1-100
+# Task 2: questions 101-200
+# ...
+# Task 10: questions 901-1000
 ```
 
-Submit array jobs with: `sbatch scripts/submit_array_experiment.sh config/bbq_race/experiment_scratch.yaml`
+The script automatically:
+- Saves config snapshot once before submitting the array
+- Distributes questions across array tasks
+- Each task saves its transcripts independently
+- All tasks update the same index file (thread-safe)
 
 ### Performance Optimization
 
@@ -455,13 +447,13 @@ The framework automatically optimizes batch processing:
 - **Incremental saving**: Each conversation saved immediately (fault-tolerant)
 - **vLLM optimization**: Continuous batching and KV cache reuse
 
-Choose strategy based on scale (may adjust the number of q/job, depending on how long the job takes):
+Choose strategy based on scale (adjust questions per task based on job duration):
 
 | Questions | Strategy | Command |
 |-----------|----------|---------|
-| <= 100 | Single job | `./scripts/submit_experiment.sh config/benchmark/experiment_scratch.yaml` |
-| 100-500 | Array jobs (100q/job) | `sbatch scripts/submit_array_experiment.sh config/benchmark/experiment_scratch.yaml` |
-| > 500 | Array jobs (200q/job) | Modify array script for 200q/job, then submit |
+| <= 100 | Single job | `python scripts/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm` |
+| 100-500 | Array jobs (100q/job) | `python scripts/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm --array 1-5 --questions-per-task 100` |
+| > 500 | Array jobs (200q/job) | `python scripts/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm --array 1-N --questions-per-task 200` |
 
 ---
 
@@ -510,7 +502,7 @@ python scripts/query_conversations.py --date 2025-11-03
 python scripts/query_conversations.py --category race
 
 # By experiment
-python scripts/query_conversations.py --experiment llama3_8b_3agent_race_2025-11-03
+python scripts/query_conversations.py --experiment llama3_8b_3agent_race_v2025-11-03
 
 # By number of agents
 python scripts/query_conversations.py --n-agents 3
@@ -547,13 +539,13 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
   "conversations": [
     {
       "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
-      "experiment_name": "llama3_8b_3agent_race_2025-11-03",
+      "experiment_name": "llama3_8b_3agent_race_v2025-11-03",
       "benchmark_name": "bbq_race",
       "question_id": "042",
       "social_categories": ["race"],
       "date": "2025-11-03",
-      "transcript_path": "/shared/experiments/bbq_race/llama3_8b_3agent_race_2025-11-03/transcripts/550e8400-e29b-41d4-a716-446655440000.json",
-      "config_snapshot_path": "bookkeeping/experiments_config_snapshot/bbq_race/llama3_8b_3agent_race_2025-11-03.yaml",
+      "transcript_path": "/shared/experiments/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcripts/550e8400-e29b-41d4-a716-446655440000.json",
+      "config_snapshot_path": "bookkeeping/experiments_config_snapshot/bbq_race/llama3_8b_3agent_race_v2025-11-03.yaml",
       "n_agents": 3,
       "addon_spec": "race",
       "agents": [
@@ -660,11 +652,11 @@ class DebateOutput(BaseModel):
 
 ## Schema Versioning
 
-### Current Version: `2025-11-03`
+### Current Version: `v2025-11-03`
 
 All transcripts include a `protocol_version` field. When schemas evolve:
 
-1. Create new version directory: `schemas/YYYY-MM-DD/`
+1. Create new version directory: `schemas/vYYYY-MM-DD/`
 2. Update `schemas/index.json`
 3. Old transcripts remain parseable
 
@@ -672,8 +664,8 @@ All transcripts include a `protocol_version` field. When schemas evolve:
 
 ```bash
 python scripts/validate_transcript.py \
-  --transcript experiments/bbq_race/llama3_8b_3agent_race_2025-11-03/transcripts/{uuid}.json \
-  --schema schemas/2025-11-03/conversation.schema.json
+  --transcript experiments/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcripts/{uuid}.json \
+  --schema schemas/v2025-11-03/conversation.schema.json
 ```
 
 ---
