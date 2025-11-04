@@ -389,6 +389,81 @@ Agents are displayed in conversation context as:
 **speaker 003 | a person**: Neutral perspective on implementation...
 ```
 
+### Routing Mechanism
+
+The routing strategy controls conversation flow: who speaks when, and what message history each agent can see.
+
+#### Round-Based Conversation Flow
+
+Conversations proceed in **rounds**, with each round allowing all agents to speak:
+
+```
+Round 0: All agents respond to the initial question (no prior messages visible)
+Round 1: All agents respond seeing messages from Round 0
+Round 2: All agents respond seeing messages from Rounds 0-1
+...
+Round N: Continues until max_rounds reached
+```
+
+**Key properties:**
+- **Within a round**: Agents speak sequentially in the order defined in the config
+- **Between rounds**: All agents see the same history (determined by routing strategy)
+- **No interruption**: An agent cannot interrupt another agent mid-round
+
+#### Vanilla Routing Strategy
+
+The default `vanilla` routing strategy implements full visibility:
+
+**Speaking order:**
+- Agents speak in the order listed in the config (speaker_001, speaker_002, speaker_003, ...)
+- Same order maintained across all rounds
+
+**Message visibility:**
+- **Round 0**: Agents see only the initial question (no prior agent messages)
+- **Round 1+**: Agents see **all messages** from **all previous rounds**
+  - Example: In Round 2, agents see all messages from Rounds 0 and 1
+
+**Example conversation flow (3 agents, 2 rounds):**
+
+```yaml
+# Round 0
+Question: "Should we implement universal healthcare?"
+- speaker_001 (black doctor) responds → Message M1
+- speaker_002 (white doctor) responds → Message M2
+- speaker_003 (policy expert) responds → Message M3
+
+# Round 1
+All agents now see: Question + [M1, M2, M3]
+- speaker_001 responds → Message M4
+- speaker_002 responds → Message M5
+- speaker_003 responds → Message M6
+
+# Round 2 (if max_rounds >= 3)
+All agents now see: Question + [M1, M2, M3, M4, M5, M6]
+- speaker_001 responds → Message M7
+- speaker_002 responds → Message M8
+- speaker_003 responds → Message M9
+```
+
+#### Custom Routing Strategies
+
+You can implement custom routing strategies to control visibility differently:
+
+**Partial visibility examples:**
+- **Last round only**: Agents see only messages from the immediately previous round
+- **Role-based**: Agents see only messages from agents with the same role
+- **Selective**: Agents see only messages explicitly routed to them
+
+See the [Extending the Framework](#extending-the-framework) section for implementation details.
+
+**Configuration:**
+
+```yaml
+experiment:
+  routing_strategy: vanilla  # or custom strategy name
+  max_rounds: 3              # Maximum conversation rounds
+```
+
 ### Shared Model Backbone
 
 To optimize GPU memory usage, configure all agents to use the same model instance:
@@ -810,32 +885,80 @@ if __name__ == "__main__":
 
 ### Adding New Routing Strategies
 
-Create a new router in `src/routing/`:
+Custom routing strategies control message visibility. The `vanilla` router shows all previous messages; custom routers can implement selective visibility.
+
+**Base router interface:**
+
+```python
+# src/routing/base_router.py
+class BaseRouter:
+    def get_visible_messages(self, current_agent, current_round, history):
+        """
+        Returns list of message IDs visible to current_agent.
+
+        Args:
+            current_agent: Agent object about to speak
+            current_round: Current round number (0-indexed)
+            history: List of all previous rounds with messages
+
+        Returns:
+            List of message_ids the agent should see
+        """
+        pass
+```
+
+**Example 1: Role-based visibility**
+
+Agents only see messages from agents with the same role:
 
 ```python
 # src/routing/role_based_router.py
 from src.routing.base_router import BaseRouter
 
 class RoleBasedRouter(BaseRouter):
-    """Route messages based on agent roles."""
+    """Agents see only messages from same-role agents."""
+
+    def get_visible_messages(self, current_agent, current_round, history):
+        if current_round == 0:
+            return []  # Round 0: no prior messages
+
+        # Show only messages from agents with same role
+        visible = []
+        for round_data in history[:current_round]:
+            same_role_msgs = [
+                msg["message_id"] for msg in round_data["messages"]
+                if msg["agent_role"] == current_agent.role
+            ]
+            visible.extend(same_role_msgs)
+        return visible
+```
+
+**Example 2: Last round only**
+
+Agents only see messages from the immediately previous round:
+
+```python
+# src/routing/last_round_router.py
+from src.routing.base_router import BaseRouter
+
+class LastRoundRouter(BaseRouter):
+    """Agents see only the previous round's messages."""
 
     def get_visible_messages(self, current_agent, current_round, history):
         if current_round == 0:
             return []
 
-        # Only show messages from same role
+        # Show only messages from previous round
         previous_round = history[current_round - 1]
-        same_role_msgs = [
-            msg["message_id"] for msg in previous_round["messages"]
-            if msg["role"] == current_agent.role
-        ]
-        return same_role_msgs
+        return [msg["message_id"] for msg in previous_round["messages"]]
 ```
 
-Then use in config:
+**Using custom routers:**
 
 ```yaml
-routing_strategy: role_based
+experiment:
+  routing_strategy: role_based  # or last_round, or your custom name
+  max_rounds: 3
 ```
 
 ### Adding New Model Families
