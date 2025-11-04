@@ -85,7 +85,7 @@ python script/query_conversations.py --benchmark bbq_race
 │   └── discrimeval_gender.jsonl
 │
 ├── src/                                    # Source code
-│   ├── agents/                             # Agent implementations
+│   ├── agent/                              # Agent implementations
 │   │   ├── base_agent.py
 │   │   ├── vllm_agent.py
 │   │   └── model_factory.py
