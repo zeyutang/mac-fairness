@@ -49,7 +49,7 @@ python scripts/query_conversations.py --benchmark bbq_race
 │
 ├── schemas/                                # Protocol schemas (versioned)
 │   ├── index.json                          # Schema version registry
-│   └── v2025-11-03/                        # Current protocol version
+│   └── 2025-11-03/                         # Current protocol version (follows MCP convention)
 │       ├── conversation.schema.json
 │       ├── metadata.schema.json
 │       ├── agent.schema.json
@@ -276,6 +276,8 @@ Components:
 - **n_agents**: Number of agents (assumes < 100)
 - **addon_spec**: Social categories or experimental condition
 - **PROTOCOL_VERSION**: Protocol version with 'v' prefix (e.g., `v2025-11-03`)
+  - The 'v' prefix distinguishes protocol version from modification dates
+  - References schema directory `schemas/2025-11-03/` (which follows MCP convention without 'v')
 
 ### Agent Configuration
 
@@ -652,20 +654,24 @@ class DebateOutput(BaseModel):
 
 ## Schema Versioning
 
-### Current Version: `v2025-11-03`
+### Current Version: `2025-11-03`
 
 All transcripts include a `protocol_version` field. When schemas evolve:
 
-1. Create new version directory: `schemas/vYYYY-MM-DD/`
+1. Create new version directory: `schemas/YYYY-MM-DD/` (follows MCP convention - no v-prefix)
 2. Update `schemas/index.json`
 3. Old transcripts remain parseable
+
+**Note on naming conventions:**
+- **Schema directories**: `schemas/2025-11-03/` (no v-prefix, follows MCP repo convention)
+- **Experiment names and config files**: `experiment_name_v2025-11-03` (with v-prefix to indicate protocol version, not modification date)
 
 ### Validating Transcripts
 
 ```bash
 python scripts/validate_transcript.py \
   --transcript experiments/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcripts/{uuid}.json \
-  --schema schemas/v2025-11-03/conversation.schema.json
+  --schema schemas/2025-11-03/conversation.schema.json
 ```
 
 ---
