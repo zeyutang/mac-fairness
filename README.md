@@ -883,7 +883,7 @@ if __name__ == "__main__":
 
 ---
 
-## (Come Back to This Later) Extending the Framework
+## Extending the Framework
 
 ### Adding New Routing Strategies
 
@@ -976,20 +976,6 @@ def load_model(model_config: dict):
     elif family == "mistral":  # New family
         return load_mistral(model_config)
     # ...
-```
-
-### Custom Output Schemas
-
-Extend `src/conversation/schemas.py`:
-
-```python
-class DebateOutput(BaseModel):
-    """Extended output for debate-style conversations."""
-    narrative: str
-    final_answer: str
-    brief_summary: str
-    confidence: float = Field(ge=0, le=1)
-    evidence_cited: List[str] = []
 ```
 
 ---
