@@ -28,13 +28,13 @@ uv pip install -e .
 export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments/mac_fairness"
 
 # 3. Run an experiment locally or submit to Slurm
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml
 
 # Or submit to Slurm (saves snapshot immediately at queuing time)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 
 # 4. Query results
-python scripts/query_conversations.py --benchmark bbq_race
+python script/query_conversations.py --benchmark bbq_race
 ```
 
 ---
@@ -47,7 +47,7 @@ python scripts/query_conversations.py --benchmark bbq_race
 ├── README.md
 ├── pyproject.toml                          # Project dependencies
 │
-├── schemas/                                # Protocol schemas (versioned)
+├── schema/                                 # Protocol schemas (versioned)
 │   ├── index.json                          # Schema version registry
 │   └── 2025-11-03/                         # Current protocol version (follows MCP convention)
 │       ├── conversation.schema.json
@@ -60,16 +60,16 @@ python scripts/query_conversations.py --benchmark bbq_race
 │
 ├── bookkeeping/                            # Experiment metadata and snapshots (auto saved, do NOT edit)
 │   ├── index.json                          # Single searchable index of all experiments
-│   └── experiments_config_snapshot/        # Immutable config snapshots from submitted jobs
+│   └── config_snapshot/                    # Immutable config snapshots from submitted jobs
 │       └── {benchmark}/                    # Organized by benchmark subcategories, e.g., bbq_race
-│           ├── llama3_8b_3agent_race_v2025-11-03.yaml
-│           ├── qwen2_7b_5agent_gender_v2025-11-04.yaml
-│           └── gemma_2b_4agent_mixed_v2025-11-05.yaml
+│           ├── llama3_8b_3agent_race_v2025-11-03_20251104T120000Z.yaml
+│           ├── llama3_8b_3agent_race_v2025-11-03_20251104T150000Z.yaml
+│           └── qwen2_7b_5agent_gender_v2025-11-04_20251105T093000Z.yaml
 │
-├── experiments/                            # Default transcript storage (if env var not set)
+├── experiment/                             # Default transcript storage (if env var not set)
 │   └── {benchmark}/
 │       └── {experiment_name}/
-│           └── transcripts/                # Containing conversation transcripts for Qs
+│           └── transcript/                 # Containing conversation transcripts for Qs
 │               └── {uuid}.json
 │
 ├── config/                                 # Working configuration files (edit config scratch here)
@@ -103,16 +103,10 @@ python scripts/query_conversations.py --benchmark bbq_race
 │   └── utils/                              # Utilities
 │       └── model_loader.py
 │
-├── scripts/                                # Executable scripts
-│   ├── run_experiment.py                   # Run full experiment (all questions)
-│   ├── query_conversations.py              # Query index
-│   └── validate_transcript.py              # Schema validator
-│
-└── tests/                                  # Unit and integration tests
-    ├── test_agents.py
-    ├── test_routing.py
-    ├── test_output_validation.py
-    └── test_conversation.py
+└── script/                                 # Executable scripts
+    ├── run_experiment.py                   # Run full experiment (all questions)
+    ├── query_conversations.py              # Query index
+    └── validate_transcript.py              # Schema validator
 ```
 
 ### Directory Purposes
@@ -121,7 +115,8 @@ python scripts/query_conversations.py --benchmark bbq_race
 
 - **`src/conversation/manager.py`**: Orchestrates entire experiments
   - Loads and validates experiment configurations
-  - Saves immutable config snapshots to `bookkeeping/experiments_config_snapshot/{benchmark}/` at submission/start time
+  - Saves immutable config snapshots to `bookkeeping/config_snapshot/{benchmark}/` with timestamps
+  - Snapshot naming: `{experiment_name}_{TIMESTAMP}.yaml` (e.g., `llama3_8b_3agent_race_v2025-11-03_20251104T120000Z.yaml`)
   - For Slurm jobs: snapshot saved at queuing time (before job runs)
   - For local execution: snapshot saved at start time (before execution begins)
   - Manages agent initialization and conversation rounds
@@ -145,12 +140,14 @@ python scripts/query_conversations.py --benchmark bbq_race
 
 - **`bookkeeping/`**: Runtime metadata and config snapshots (what has been submitted/run)
   - `index.json`: Lightweight searchable index of all experiments
-  - `experiments_config_snapshot/{benchmark}/`: Immutable snapshots organized by benchmark
+  - `config_snapshot/{benchmark}/`: Immutable snapshots organized by benchmark
+  - Each snapshot timestamped: `{experiment_name}_{TIMESTAMP}.yaml` (Zulu time format)
   - **For Slurm**: Generated immediately at submission time (queuing time, before job runs)
   - **For local**: Generated at start of execution (before processing questions)
   - Always stored under `<workspace>` for reproducibility and fast access
+  - Multiple submissions of same experiment name get unique snapshots via timestamps
 
-- **`experiments/`**: Full transcript output (actual conversation data)
+- **`experiment/`**: Full transcript output (actual conversation data)
   - Contains complete conversation transcripts in JSON format
   - Can be stored elsewhere via `$PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT`
   - Large files with full agent responses and metadata
@@ -158,7 +155,8 @@ python scripts/query_conversations.py --benchmark bbq_race
 This three-way separation ensures:
 
 1. **Working configs** (`config/*_scratch.yaml`) can be freely edited after submission without affecting queued/running jobs
-2. **Config snapshots** (`bookkeeping/experiments_config_snapshot/`) provide exact reproducibility
+2. **Config snapshots** (`bookkeeping/config_snapshot/`) provide exact reproducibility
+   - Timestamped: Multiple runs with same experiment name won't overwrite
    - For Slurm: Captured at queuing time, safe to edit scratch immediately
    - For local: Captured at start time, ensuring consistency throughout execution
 3. **Bookkeeping** provides fast local search without accessing large transcript files
@@ -277,7 +275,7 @@ Components:
 - **addon_spec**: Social categories or experimental condition
 - **PROTOCOL_VERSION**: Protocol version with 'v' prefix (e.g., `v2025-11-03`)
   - The 'v' prefix distinguishes protocol version from modification dates
-  - References schema directory `schemas/2025-11-03/` (which follows MCP convention without 'v')
+  - References schema directory `schema/2025-11-03/` (which follows MCP convention without 'v')
 
 ### Agent Configuration
 
@@ -342,33 +340,33 @@ The framework provides a unified interface for both local execution and Slurm su
 
 ```bash
 # Run locally (snapshot saved at start, then executed immediately)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml
 
 # Submit to Slurm (snapshot saved at queuing time, safe to edit scratch file immediately after)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 
 # Process specific question range (useful for testing or array jobs)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --range 1-10
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --range 1-10
 
 # With environment variable for transcript storage
 export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments"
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 ```
 
 ### Execution Flow
 
 **For local execution** (default):
-1. Load and save config snapshot to `bookkeeping/experiments_config_snapshot/{benchmark}/{experiment_name}.yaml`
+1. Load and save config snapshot to `bookkeeping/config_snapshot/{benchmark}/{experiment_name}_{TIMESTAMP}.yaml`
 2. Load the snapshot (not scratch file) for execution
 3. Read questions from the specified JSONL file
 4. Initialize models once using vLLM
 5. Run each question with the same agent configuration
-6. Save transcripts to `{EXPERIMENTS_ROOT}/{benchmark}/{experiment_name}/transcripts/{uuid}.json`
-7. Update `bookkeeping/index.json` with metadata for each conversation
+6. Save transcripts to `{EXPERIMENTS_ROOT}/{benchmark}/{experiment_name}/transcript/{uuid}.json`
+7. Update `bookkeeping/index.json` with metadata for each conversation (includes snapshot timestamp)
 
 **For Slurm submission** (`--mode slurm`):
-1. **Save config snapshot immediately** (at queuing time, before job starts)
-2. Generate Slurm job script that uses the snapshot
+1. **Save config snapshot immediately** with timestamp (at queuing time, before job starts)
+2. Generate Slurm job script that uses the timestamped snapshot
 3. Submit job to Slurm queue
 4. **You can now safely edit the scratch file** without affecting the queued job
 5. When job runs, it uses the snapshot (steps 2-7 above)
@@ -380,24 +378,26 @@ python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-
 
 ```bash
 # Example: Submit multiple jobs, editing config between submissions
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+# -> Saves: bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_race_v2025-11-03_20251104T120000Z.yaml
 
 # Snapshot saved immediately! Now safe to edit:
 vim config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml  # Change parameters
 
 # Submit another job with updated config
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+# -> Saves: bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_race_v2025-11-03_20251104T150000Z.yaml
 ```
 
 ### Custom Slurm Parameters
 
-For custom SLURM parameters (GPU type, memory, time limits), modify the default parameters in `scripts/run_experiment.py` or pass them via environment variables:
+For custom SLURM parameters (GPU type, memory, time limits), modify the default parameters in `script/run_experiment.py` or pass them via environment variables:
 
 ```bash
 export SLURM_GPUS="a100:1"
 export SLURM_MEM="32G"
 export SLURM_TIME="4:00:00"
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 ```
 
 ---
@@ -410,10 +410,10 @@ Since each experiment runs the same agent configuration across all questions, ba
 
 ```bash
 # Process all questions in benchmark on Slurm
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --mode slurm
 
 # For testing specific ranges locally (without Slurm)
-python scripts/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --range 1-10
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml --range 1-10
 ```
 
 ### Slurm Array Jobs
@@ -422,7 +422,7 @@ For very large benchmarks, you can use array jobs with the `--array` flag:
 
 ```bash
 # Submit array job: 10 tasks, each processing 100 questions
-python scripts/run_experiment.py \
+python script/run_experiment.py \
   config/bbq_race/llama3_8b_3agent_race_v2025-11-03_scratch.yaml \
   --mode slurm \
   --array 1-10 \
@@ -436,10 +436,11 @@ python scripts/run_experiment.py \
 ```
 
 The script automatically:
-- Saves config snapshot once before submitting the array
+- Saves config snapshot once with timestamp before submitting the array
 - Distributes questions across array tasks
 - Each task saves its transcripts independently
 - All tasks update the same index file (thread-safe)
+- All tasks reference the same timestamped config snapshot
 
 ### Performance Optimization
 
@@ -453,9 +454,9 @@ Choose strategy based on scale (adjust questions per task based on job duration)
 
 | Questions | Strategy | Command |
 |-----------|----------|---------|
-| <= 100 | Single job | `python scripts/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm` |
-| 100-500 | Array jobs (100q/job) | `python scripts/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm --array 1-5 --questions-per-task 100` |
-| > 500 | Array jobs (200q/job) | `python scripts/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm --array 1-N --questions-per-task 200` |
+| <= 100 | Single job | `python script/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm` |
+| 100-500 | Array jobs (100q/job) | `python script/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm --array 1-5 --questions-per-task 100` |
+| > 500 | Array jobs (200q/job) | `python script/run_experiment.py config/benchmark/experiment_scratch.yaml --mode slurm --array 1-N --questions-per-task 200` |
 
 ---
 
@@ -468,18 +469,21 @@ The framework separates metadata from full transcripts:
 ```
 <workspace>/
 ├── bookkeeping/
-│   └── index.json                    # Lightweight metadata (always local)
+│   ├── index.json                    # Lightweight metadata (always local)
+│   └── config_snapshot/              # Timestamped config snapshots
+│       └── {benchmark}/
+│           └── {experiment_name}_{TIMESTAMP}.yaml
 │
-└── experiments/                       # Full transcripts (local default)
+└── experiment/                        # Full transcripts (local default)
     └── {benchmark}/
         └── {experiment_name}/
-            └── transcripts/
+            └── transcript/
                 └── {uuid}.json
 
 ${PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT}/  # Full transcripts (if env var set)
 └── {benchmark}/
     └── {experiment_name}/
-        └── transcripts/
+        └── transcript/
             └── {uuid}.json
 ```
 
@@ -487,6 +491,7 @@ ${PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT}/  # Full transcripts (if env var set)
 
 - Metadata stays local for fast queries, transcripts can be on shared/scratch storage
 - Transcript files named by UUID only (e.g., `550e8400-e29b-41d4-a716-446655440000.json`)
+- Config snapshots timestamped to prevent overwrites on multiple submissions
 - Question ID mapping maintained in index for fast lookup without special character issues
 
 ### Querying Conversations
@@ -495,37 +500,37 @@ Use the query script with advanced filtering capabilities:
 
 ```bash
 # By benchmark
-python scripts/query_conversations.py --benchmark bbq_race
+python script/query_conversations.py --benchmark bbq_race
 
 # By date
-python scripts/query_conversations.py --date 2025-11-03
+python script/query_conversations.py --date 2025-11-03
 
 # By social category
-python scripts/query_conversations.py --category race
+python script/query_conversations.py --category race
 
 # By experiment
-python scripts/query_conversations.py --experiment llama3_8b_3agent_race_v2025-11-03
+python script/query_conversations.py --experiment llama3_8b_3agent_race_v2025-11-03
 
 # By number of agents
-python scripts/query_conversations.py --n-agents 3
-python scripts/query_conversations.py --n-agents-range 3-5  # 3 to 5 agents
+python script/query_conversations.py --n-agents 3
+python script/query_conversations.py --n-agents-range 3-5  # 3 to 5 agents
 
 # By model family
-python scripts/query_conversations.py --model-family llama
-python scripts/query_conversations.py --model-family qwen
+python script/query_conversations.py --model-family llama
+python script/query_conversations.py --model-family qwen
 
 # By specific model
-python scripts/query_conversations.py --model llama-3-8b
+python script/query_conversations.py --model llama-3-8b
 
 # Combined filters (AND logic)
-python scripts/query_conversations.py \
+python script/query_conversations.py \
   --benchmark bbq_race \
   --category race \
   --n-agents 3 \
   --model-family llama
 
 # Export results to JSON
-python scripts/query_conversations.py \
+python script/query_conversations.py \
   --benchmark bbq_race \
   --export results.json
 ```
@@ -546,8 +551,9 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
       "question_id": "042",
       "social_categories": ["race"],
       "date": "2025-11-03",
-      "transcript_path": "/shared/experiments/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcripts/550e8400-e29b-41d4-a716-446655440000.json",
-      "config_snapshot_path": "bookkeeping/experiments_config_snapshot/bbq_race/llama3_8b_3agent_race_v2025-11-03.yaml",
+      "submission_timestamp": "2025-11-04T12:00:00Z",
+      "transcript_path": "/shared/experiments/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcript/550e8400-e29b-41d4-a716-446655440000.json",
+      "config_snapshot_path": "bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_race_v2025-11-03_20251104T120000Z.yaml",
       "n_agents": 3,
       "addon_spec": "race",
       "agents": [
@@ -658,20 +664,20 @@ class DebateOutput(BaseModel):
 
 All transcripts include a `protocol_version` field. When schemas evolve:
 
-1. Create new version directory: `schemas/YYYY-MM-DD/` (follows MCP convention - no v-prefix)
-2. Update `schemas/index.json`
+1. Create new version directory: `schema/YYYY-MM-DD/` (follows MCP convention - no v-prefix)
+2. Update `schema/index.json`
 3. Old transcripts remain parseable
 
 **Note on naming conventions:**
-- **Schema directories**: `schemas/2025-11-03/` (no v-prefix, follows MCP repo convention)
+- **Schema directories**: `schema/2025-11-03/` (no v-prefix, follows MCP repo convention)
 - **Experiment names and config files**: `experiment_name_v2025-11-03` (with v-prefix to indicate protocol version, not modification date)
 
 ### Validating Transcripts
 
 ```bash
-python scripts/validate_transcript.py \
-  --transcript experiments/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcripts/{uuid}.json \
-  --schema schemas/2025-11-03/conversation.schema.json
+python script/validate_transcript.py \
+  --transcript experiment/bbq_race/llama3_8b_3agent_race_v2025-11-03/transcript/{uuid}.json \
+  --schema schema/2025-11-03/conversation.schema.json
 ```
 
 ---
