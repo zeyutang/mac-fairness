@@ -35,7 +35,7 @@ python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as-human-demogr
 python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as-human-demographics_vanilla_v2025-11-03_scratch.yaml --mode slurm
 
 # 4. Query results
-python script/query_conversations.py --benchmark bbq_race
+python script/query_transcripts.py --benchmark bbq_race
 ```
 
 ---
@@ -51,13 +51,13 @@ python script/query_conversations.py --benchmark bbq_race
 ├── schema/                                 # Protocol schemas (versioned)
 │   ├── index.json                          # Schema version registry
 │   └── 2025-11-03/                         # Current protocol version (follows MCP convention)
-│       ├── conversation.schema.json
-│       ├── metadata.schema.json
-│       ├── agent.schema.json
-│       ├── message.schema.json
-│       ├── question.schema.json
-│       ├── routing.schema.json
-│       └── structured_output.schema.json
+│       ├── conversation.schema.json        # Full conversation transcript validation
+│       ├── metadata.schema.json            # Metadata validation
+│       ├── agent.schema.json               # Agent configuration validation
+│       ├── message.schema.json             # Individual message validation
+│       ├── question.schema.json            # Question format validation
+│       ├── routing.schema.json             # Routing strategy validation
+│       └── structured_output.schema.json   # Agent output validation (model-agnostic)
 │
 ├── bookkeeping/                            # Experiment metadata and snapshots (auto saved, do NOT edit)
 │   ├── index.json                          # Single searchable index of all experiments
@@ -106,7 +106,7 @@ python script/query_conversations.py --benchmark bbq_race
 │
 └── script/                                 # Executable scripts
     ├── run_experiment.py                   # Run full experiment (all questions)
-    ├── query_conversations.py              # Query index
+    ├── query_transcripts.py                # Query index
     ├── validate_transcript.py              # Schema validator
     └── formatters/                         # Benchmark data formatters
         ├── bbq_formatter.py                # Format BBQ benchmark to JSONL
@@ -693,37 +693,37 @@ Use the query script with advanced filtering capabilities:
 
 ```bash
 # By benchmark
-python script/query_conversations.py --benchmark bbq_race
+python script/query_transcripts.py --benchmark bbq_race
 
 # By date
-python script/query_conversations.py --date 2025-11-03
+python script/query_transcripts.py --date 2025-11-03
 
 # By benchmark category (e.g., bbq_race -> race)
-python script/query_conversations.py --category race
+python script/query_transcripts.py --category race
 
 # By experiment
-python script/query_conversations.py --experiment llama3_8b_3agent_as-human-demographics_vanilla_v2025-11-03
+python script/query_transcripts.py --experiment llama3_8b_3agent_as-human-demographics_vanilla_v2025-11-03
 
 # By number of agents
-python script/query_conversations.py --n-agents 3
-python script/query_conversations.py --n-agents-range 3-5  # 3 to 5 agents
+python script/query_transcripts.py --n-agents 3
+python script/query_transcripts.py --n-agents-range 3-5  # 3 to 5 agents
 
 # By model family
-python script/query_conversations.py --model-family llama
-python script/query_conversations.py --model-family qwen
+python script/query_transcripts.py --model-family llama
+python script/query_transcripts.py --model-family qwen
 
 # By specific model
-python script/query_conversations.py --model llama-3-8b
+python script/query_transcripts.py --model llama-3-8b
 
 # Combined filters (AND logic)
-python script/query_conversations.py \
+python script/query_transcripts.py \
   --benchmark bbq_race \
   --category race \
   --n-agents 3 \
   --model-family llama
 
 # Export results to JSON
-python script/query_conversations.py \
+python script/query_transcripts.py \
   --benchmark bbq_race \
   --export results.json
 ```
@@ -736,6 +736,7 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
 - `submission_timestamp`: When the job was submitted (saved in config snapshot filename)
 - `execution_timestamp`: When the conversation actually ran
 - `protocol_version`: Schema version (e.g., "2025-11-03")
+- `routing_strategy`: Routing strategy used (e.g., "vanilla", "role_based", "last_round")
 - `agent_config_axes`: What agent attributes are varied (always includes "as_human" since it's always defined)
   - Examples: `["as_human", "demographics"]`, `["as_human", "demographics", "persona"]`
 - `shared_model_backbone`: Which model definition is used by all agents
@@ -758,6 +759,7 @@ The single index file (`bookkeeping/index.json`) contains all metadata:
       "transcript_path": "/shared/experiment/bbq_race/llama3_8b_3agent_as-human-demographics_vanilla_v2025-11-03/transcript/550e8400-e29b-41d4-a716-446655440000.json",
       "config_snapshot_path": "bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_as-human-demographics_vanilla_v2025-11-03_20251104T120000Z.yaml",
       "protocol_version": "2025-11-03",
+      "routing_strategy": "vanilla",
       "n_agents": 3,
       "shared_model_backbone": "llama-3-8b",
       "agents": [
