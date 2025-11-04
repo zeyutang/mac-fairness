@@ -64,7 +64,7 @@ python script/query_conversations.py --benchmark bbq_race
 │       └── {benchmark}/                    # Organized by benchmark subcategories, e.g., bbq_race
 │           ├── llama3_8b_3agent_race_v2025-11-03_20251104T120000Z.yaml
 │           ├── llama3_8b_3agent_race_v2025-11-03_20251104T150000Z.yaml
-│           └── qwen2_7b_5agent_gender_v2025-11-04_20251105T093000Z.yaml
+│           └── qwen2_7b_5agent_gender_v2025-11-03_20251105T093000Z.yaml
 │
 ├── experiment/                             # Default transcript storage (if env var not set)
 │   └── {benchmark}/
@@ -75,8 +75,8 @@ python script/query_conversations.py --benchmark bbq_race
 ├── config/                                 # Working configuration files (edit config scratch here)
 │   └── {benchmark}/                        # Organized by benchmark
 │       ├── llama3_8b_3agent_race_v2025-11-03_scratch.yaml
-│       ├── qwen2_7b_5agent_gender_v2025-11-04_scratch.yaml
-│       └── gemma_2b_4agent_mixed_v2025-11-05_scratch.yaml
+│       ├── qwen2_7b_5agent_gender_v2025-11-03_scratch.yaml
+│       └── gemma_2b_4agent_mixed_v2025-11-03_scratch.yaml
 │
 ├── data/                                   # Benchmark questions (separated according to subcategories)
 │   ├── bbq_race.jsonl
@@ -211,7 +211,7 @@ experiment:
       persona: doctor
       demographics: black
       as_human: true
-      model: llama-3-8b  # Ignored if shared_model_backbone is set
+      model: shared  # Uses shared_model_backbone
       temperature: 0.7
       max_tokens: 512
 
@@ -220,7 +220,7 @@ experiment:
       persona: doctor
       demographics: white
       as_human: true
-      model: llama-3-8b
+      model: shared  # Uses shared_model_backbone
       temperature: 0.7
       max_tokens: 512
 
@@ -229,11 +229,12 @@ experiment:
       persona: policy_expert
       demographics: null
       as_human: true
-      model: llama-3-8b
+      model: shared  # Uses shared_model_backbone
       temperature: 0.5
       max_tokens: 512
 
-  # Model definitions (inline, no external references)
+  # Model definitions: Define HOW to load models (path, vLLM configs)
+  # The shared_model_backbone above specifies WHICH model to use for all agents
   models:
     llama-3-8b:
       family: llama
@@ -265,8 +266,8 @@ All experiments follow a consistent naming scheme:
 Examples:
 
 - `llama3_8b_3agent_race_v2025-11-03`
-- `qwen2_7b_5agent_gender_v2025-11-04`
-- `gemma_2b_4agent_race_and_gender_v2025-11-05`
+- `qwen2_7b_5agent_gender_v2025-11-03`
+- `gemma_2b_4agent_mixed_v2025-11-03`
 
 Components:
 
@@ -321,14 +322,29 @@ Agents are displayed in conversation context as:
 To optimize GPU memory usage, configure all agents to use the same model instance:
 
 ```yaml
-shared_model_backbone: llama-3-8b  # All agents share this model
+shared_model_backbone: llama-3-8b  # References which model definition to use
+agents:
+  - agent_id: speaker_001
+    model: shared  # Uses shared_model_backbone
+    temperature: 0.7
+
+models:
+  llama-3-8b:  # Model definition: HOW to load the model
+    family: llama
+    model_path: meta-llama/Meta-Llama-3-8B-Instruct
 ```
+
+**How it works:**
+- `models:` section defines model configurations (path, vLLM settings)
+- `shared_model_backbone:` specifies which model definition to load (once)
+- `agents[].model: shared` tells agents to use the shared backbone
 
 Benefits:
 
 - **Memory efficiency**: One model instance instead of N
 - **Faster startup**: Single model initialization
 - **Different sampling**: Agents can still have different temperatures
+- **Clear configuration**: Model details defined once, referenced by name
 
 ---
 
