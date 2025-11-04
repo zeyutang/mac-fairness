@@ -206,7 +206,7 @@ experiment:
   max_rounds: 3
   routing_strategy: vanilla
 
-  # Optional: Use same model for all agents (saves GPU memory)
+  # Recommended (protocol version 2025-11-03): Use same model for all agents (saves GPU memory)
   shared_model_backbone: llama-3-8b
 
   # Agent definitions (same agents for all questions)
@@ -251,6 +251,56 @@ experiment:
         dtype: float16
 ```
 
+### What You Configure vs What's Automatic
+
+**You only need to edit the config YAML** - everything else is handled automatically:
+
+#### Manual Configuration (Edit Once)
+
+1. **Config YAML** (`config/{benchmark}/*_scratch.yaml`):
+   - `experiment_name` - following the naming convention
+   - `benchmark_name` - which benchmark to run
+   - `questions_file` - path to JSONL questions
+   - `agent_config_axes` - what you're varying
+   - `max_rounds`, `routing_strategy` - experiment parameters
+   - `shared_model_backbone` - which model to use
+   - `agents` - agent definitions with roles, personas, demographics
+   - `models` - model loading configurations
+
+2. **Environment Variable** (Optional):
+   ```bash
+   export PROJECT_MAC_FAIRNESS_EXPERIMENTS_ROOT="/shared/experiments"
+   # If not set, defaults to <workspace>/experiment
+   ```
+
+#### Automatic (Framework Handles)
+
+- **Timestamped config snapshots**: `{experiment_name}_{TIMESTAMP}.yaml`
+  - Auto-generated at submission (Slurm) or start time (local)
+  - Prevents overwrites on multiple submissions
+- **UUID generation**: Unique IDs for each transcript (e.g., `550e8400-e29b-41d4-a716-446655440000.json`)
+- **Directory creation**: All `bookkeeping/` and `experiment/` subdirectories
+- **Index updates**: `bookkeeping/index.json` updated with metadata after each conversation
+- **Timestamp tracking**: Both `submission_timestamp` and `execution_timestamp` recorded
+
+#### Your Workflow
+
+```bash
+# 1. Edit config YAML (ONLY thing you edit)
+vim config/bbq_race/llama3_8b_3agent_as-human-demographics_v2025-11-03_scratch.yaml
+
+# 2. Run (everything else automatic)
+python script/run_experiment.py config/bbq_race/llama3_8b_3agent_as-human-demographics_v2025-11-03_scratch.yaml
+
+# Framework automatically:
+# - Creates timestamped snapshot: bookkeeping/config_snapshot/bbq_race/llama3_8b_3agent_as-human-demographics_v2025-11-03_20251104T120000Z.yaml
+# - Generates UUIDs for transcripts
+# - Updates index.json
+# - Creates all necessary directories
+```
+
+**No script modification needed** for standard usage!
+
 ### Questions File Format
 
 Questions are stored separately in JSONL format (one question per line):
@@ -268,13 +318,15 @@ All experiments follow a consistent naming scheme:
 
 `{model_abbr}_{n_agents}agent_as-{human|ai|hybrid}-{varied_axes}_{PROTOCOL_VERSION}`
 
+**You set this manually** in the config YAML (`experiment_name` field).
+
 Examples:
 
 - `llama3_8b_3agent_as-human-demographics_v2025-11-03` (all agents as humans, varying demographics)
 - `qwen2_7b_5agent_as-ai-demographics-persona_v2025-11-03` (all agents as AI, varying demographics and persona)
 - `gemma_2b_4agent_as-hybrid-persona_v2025-11-03` (mixed human/AI agents, varying persona)
 
-Components:
+Components (Manual - you choose):
 
 - **model_abbr**: Short model identifier (e.g., `llama3_8b`)
 - **n_agents**: Number of agents (assumes < 100)
@@ -290,6 +342,12 @@ Components:
 - **PROTOCOL_VERSION**: Protocol version with 'v' prefix (e.g., `v2025-11-03`)
   - The 'v' prefix distinguishes protocol version from modification dates
   - References schema directory `schema/2025-11-03/` (which follows MCP convention without 'v')
+
+**Automatic additions** by the framework:
+- **Config snapshots**: `{experiment_name}_{TIMESTAMP}.yaml` (e.g., `llama3_8b_3agent_as-human-demographics_v2025-11-03_20251104T120000Z.yaml`)
+  - Timestamp added automatically at submission/start time
+  - Prevents overwrites when submitting same experiment multiple times
+- **Transcript files**: Named by auto-generated UUID (e.g., `550e8400-e29b-41d4-a716-446655440000.json`)
 
 ### Agent Configuration
 
@@ -358,6 +416,36 @@ Benefits:
 - **Faster startup**: Single model initialization
 - **Different sampling**: Agents can still have different temperatures
 - **Clear configuration**: Model details defined once, referenced by name
+
+**Important: Sampling parameters vs context window**
+
+- **Per-agent sampling** (`temperature`, `max_tokens`): Applied during output generation
+  - Different agents can use different values
+  - **No model reloading required** - these are lightweight sampling-time parameters
+  - Controls HOW tokens are selected from the model's output distribution
+- **Shared context window** (`max_model_len` in vLLM config): Model-level setting
+  - Set once when loading the model
+  - Determines maximum input + output length
+  - This is what consumes GPU memory
+
+```yaml
+# Example: Same model, different sampling behaviors
+agents:
+  - agent_id: speaker_001
+    model: shared
+    temperature: 0.7    # More creative/random
+    max_tokens: 512
+
+  - agent_id: speaker_002
+    model: shared
+    temperature: 0.3    # More focused/deterministic
+    max_tokens: 256     # Shorter responses
+
+models:
+  llama-3-8b:
+    vllm_config:
+      max_model_len: 4096  # Shared context window for both agents
+```
 
 ---
 
