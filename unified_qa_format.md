@@ -462,19 +462,3 @@ For future open-ended evaluations, extend the schema:
   }
 }
 ```
-
----
-
-## Summary
-
-This unified format provides:
-
-✅ **Compatibility:** Maps cleanly from all three source datasets
-✅ **Clarity:** Explicit answer fields for clear evaluation (or null for discrimination evaluation)
-✅ **Flexibility:** Supports binary and multiple-choice questions with unified numeric choice IDs
-✅ **Metadata Preservation:** Retains benchmark-specific information with clear prefixes
-✅ **Extensibility:** Easy to add new datasets or question types
-✅ **Demographic Tracking:** Standardized demographic attribute fields
-✅ **Evaluation-Ready:** Contains all information needed for scoring
-
-The format focuses on questions with clear answers (binary/multiple-choice) as requested, while leaving room for future expansion to open-ended evaluations.
