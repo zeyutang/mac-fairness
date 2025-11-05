@@ -318,7 +318,7 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
 }
 ```
 
-**Note:** DiscrimEval doesn't have explicit "correct answers" since it measures discrimination. We use **Option A**: treat each demographic variant as a separate question, with the expectation that model responses should be consistent across demographics.
+**Note:** DiscrimEval doesn't have explicit "correct answers" since it measures discrimination. Each demographic variant is treated as a separate question, with the expectation that model responses should be consistent across demographics.
 
 **Unified Format:**
 ```json
@@ -430,9 +430,9 @@ data/
 ### 4. Special Considerations
 
 #### DiscrimEval Adaptation
-Since DiscrimEval doesn't have "correct answers" but measures discrimination, we use **Option A**: Treat each demographic variant as a separate question, with the expectation that model responses should be consistent across demographics. This approach minimizes changes to the original benchmark setup.
+Since DiscrimEval doesn't have "correct answers" but measures discrimination, each demographic variant is treated as a separate question, with the expectation that model responses should be consistent across demographics. This approach minimizes changes to the original benchmark setup.
 
-Key features of Option A:
+Key features:
 - Each demographic combination creates a separate question entry
 - `answer` field is set to `null` (no single correct answer)
 - `answer_type` is set to `"no_discrimination"` to indicate evaluation methodology
