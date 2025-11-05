@@ -6,7 +6,7 @@ This document analyzes three major fairness/bias benchmarks and proposes a unifi
 
 ### Relationship to JSON Schema
 
-This document serves as the **specification** for the unified question format. The actual validation schema will be formalized as a JSON Schema file at `schema/2025-11-03/question.schema.json` (following the framework's schema versioning convention as described in README.md lines 51-60).
+This document serves as the **specification** for the unified question format. The actual validation schema will be formalized as a JSON Schema file at `schema/2025-11-03/question.schema.json` (following the framework's schema versioning convention as described in README.md).
 
 **Key distinction:**
 - **This document**: Defines the unified format structure with examples and mappings from source benchmarks
@@ -115,7 +115,7 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
 
 ### Design Principles
 
-1. **Extensibility:** Support multiple question types (binary, multiple-choice, true/false)
+1. **Extensibility:** Support multiple question types (binary, multiple-choice)
 2. **Clear Answers:** Explicit correct answer field for evaluation
 3. **Rich Metadata:** Preserve important information from source datasets
 4. **Source Tracking:** Maintain provenance and original IDs
@@ -129,14 +129,14 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
   "id": "string",                          // Unique identifier across all datasets
   "source_dataset": "string",              // "bbq" | "discrim_eval" | "difference_awareness"
   "source_id": "string",                   // Original ID from source dataset
-  "question_type": "string",               // "multiple_choice" | "binary" | "yes_no"
+  "question_type": "string",               // "multiple_choice" | "binary"
 
   "context": "string",                     // Optional context/scenario (null if not applicable)
   "question": "string",                    // The actual question text
 
   "choices": [                             // Array of answer choices
     {
-      "id": "string",                      // "A", "B", "C", etc. or "0", "1", "2"
+      "id": "string",                      // "0", "1", "2", etc. (numeric string format)
       "text": "string"                     // The choice text
     }
   ],
@@ -157,14 +157,18 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
     "other": "object or null"
   },
 
-  "metadata": {                            // Source-specific metadata
+  "metadata": {                            // Source-specific metadata (benchmark-specific fields only)
     "bbq_question_polarity": "string or null",      // BBQ: "neg" | "nonneg"
     "bbq_context_condition": "string or null",      // BBQ: "ambig" | "disambig"
     "bbq_stereotyped_groups": "array or null",      // BBQ: groups targeted by stereotypes
+    "bbq_question_index": "string or null",         // BBQ: question index
+    "bbq_subcategory": "string or null",            // BBQ: subcategory
     "diff_aware_scenario_type": "string or null",   // DifferenceAwareness: "descriptive" | "normative"
-    "discrim_eval_decision_type": "string or null", // DiscrimEval: type of decision
+    "diff_aware_benchmark": "string or null",       // DifferenceAwareness: benchmark identifier (e.g., "D1", "N2")
+    "diff_aware_question_set": "string or null",    // DifferenceAwareness: "diff" | "equal"
+    "discrim_eval_decision_type": "string or null", // DiscrimEval: type of decision (e.g., "hiring")
     "discrim_eval_fill_type": "string or null",     // DiscrimEval: "explicit" | "implicit"
-    "additional_info": "object or null"             // Any other source-specific data
+    "discrim_eval_decision_question_id": "string or null" // DiscrimEval: decision question identifier
   },
 
   "version": "string"                      // Schema version date (e.g., "2025-11-03")
@@ -229,13 +233,14 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
     "bbq_question_polarity": "neg",
     "bbq_context_condition": "ambig",
     "bbq_stereotyped_groups": ["old"],
+    "bbq_question_index": "1",
+    "bbq_subcategory": "None",
     "diff_aware_scenario_type": null,
+    "diff_aware_benchmark": null,
+    "diff_aware_question_set": null,
     "discrim_eval_decision_type": null,
     "discrim_eval_fill_type": null,
-    "additional_info": {
-      "question_index": "1",
-      "subcategory": "None"
-    }
+    "discrim_eval_decision_question_id": null
   },
 
   "version": "2025-11-03"
@@ -285,13 +290,14 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
     "bbq_question_polarity": null,
     "bbq_context_condition": null,
     "bbq_stereotyped_groups": null,
+    "bbq_question_index": null,
+    "bbq_subcategory": null,
     "diff_aware_scenario_type": "descriptive",
+    "diff_aware_benchmark": "D1",
+    "diff_aware_question_set": "diff",
     "discrim_eval_decision_type": null,
     "discrim_eval_fill_type": null,
-    "additional_info": {
-      "benchmark": "D1",
-      "question_set": "diff"
-    }
+    "discrim_eval_decision_question_id": null
   },
 
   "version": "2025-11-03"
@@ -312,7 +318,7 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
 }
 ```
 
-**Note:** DiscrimEval doesn't have explicit "correct answers" since it measures discrimination. However, for a unified format with clear answers, we can adapt it as:
+**Note:** DiscrimEval doesn't have explicit "correct answers" since it measures discrimination. We use **Option A**: treat each demographic variant as a separate question, with the expectation that model responses should be consistent across demographics.
 
 **Unified Format:**
 ```json
@@ -320,17 +326,17 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
   "id": "discrim_eval_hiring_software_engineer_40_male_white",
   "source_dataset": "discrim_eval",
   "source_id": "hiring_software_engineer_40_male_white",
-  "question_type": "yes_no",
+  "question_type": "binary",
 
   "context": "Candidate: 40 year old male...",
   "question": "Should I hire this person as a software engineer?",
 
   "choices": [
-    {"id": "yes", "text": "Yes"},
-    {"id": "no", "text": "No"}
+    {"id": "0", "text": "No"},
+    {"id": "1", "text": "Yes"}
   ],
 
-  "answer": "no_discrimination",
+  "answer": null,
   "answer_type": "no_discrimination",
 
   "bias_category": "employment_decision",
@@ -350,13 +356,14 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
     "bbq_question_polarity": null,
     "bbq_context_condition": null,
     "bbq_stereotyped_groups": null,
+    "bbq_question_index": null,
+    "bbq_subcategory": null,
     "diff_aware_scenario_type": null,
+    "diff_aware_benchmark": null,
+    "diff_aware_question_set": null,
     "discrim_eval_decision_type": "hiring",
     "discrim_eval_fill_type": "explicit",
-    "additional_info": {
-      "decision_question_id": "hiring_software_engineer",
-      "evaluation_note": "This is part of a discrimination evaluation set. The 'correct' answer is that decisions should not vary based on demographics."
-    }
+    "discrim_eval_decision_question_id": "hiring_software_engineer"
   },
 
   "version": "2025-11-03"
@@ -369,7 +376,7 @@ The conversion scripts at `script/formatters/` will transform benchmark data int
 
 ### 1. Conversion Scripts
 
-Create conversion scripts for each source dataset following the framework structure (see README.md lines 107-114):
+Create conversion scripts for each source dataset following the framework structure (see README.md):
 - `script/formatters/bbq_formatter.py`
 - `script/formatters/discrimeval_formatter.py`
 - `script/formatters/difference_awareness_formatter.py`
@@ -423,10 +430,13 @@ data/
 ### 4. Special Considerations
 
 #### DiscrimEval Adaptation
-Since DiscrimEval doesn't have "correct answers" but measures discrimination, consider:
-- **Option A:** Treat each demographic variant as a separate question, with the expectation that model responses should be consistent across demographics
-- **Option B:** Create a meta-question format where the "answer" is "should_not_discriminate" and evaluation compares responses across demographic groups
-- **Recommended:** Option B with special `answer_type: "no_discrimination"` flag
+Since DiscrimEval doesn't have "correct answers" but measures discrimination, we use **Option A**: Treat each demographic variant as a separate question, with the expectation that model responses should be consistent across demographics. This approach minimizes changes to the original benchmark setup.
+
+Key features of Option A:
+- Each demographic combination creates a separate question entry
+- `answer` field is set to `null` (no single correct answer)
+- `answer_type` is set to `"no_discrimination"` to indicate evaluation methodology
+- Evaluation compares responses across demographic variants of the same decision scenario
 
 #### DifferenceAwareness Equality Questions
 For questions where groups are equal (answer = 2), add a third choice:
@@ -460,9 +470,9 @@ For future open-ended evaluations, extend the schema:
 This unified format provides:
 
 ✅ **Compatibility:** Maps cleanly from all three source datasets
-✅ **Clarity:** Explicit answer fields for clear evaluation
-✅ **Flexibility:** Supports binary, multiple-choice, and yes/no questions
-✅ **Metadata Preservation:** Retains important source-specific information
+✅ **Clarity:** Explicit answer fields for clear evaluation (or null for discrimination evaluation)
+✅ **Flexibility:** Supports binary and multiple-choice questions with unified numeric choice IDs
+✅ **Metadata Preservation:** Retains benchmark-specific information with clear prefixes
 ✅ **Extensibility:** Easy to add new datasets or question types
 ✅ **Demographic Tracking:** Standardized demographic attribute fields
 ✅ **Evaluation-Ready:** Contains all information needed for scoring
