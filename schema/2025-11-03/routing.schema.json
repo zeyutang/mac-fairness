@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://multi-agent-fairness-eval/schema/2025-11-03/routing.schema.json",
+  "title": "Routing Strategy Configuration",
+  "description": "Configuration for conversation routing strategy (controls message visibility)",
+  "type": "object",
+  "required": ["strategy_name", "max_rounds"],
+  "properties": {
+    "strategy_name": {
+      "type": "string",
+      "description": "Name of the routing strategy",
+      "examples": ["vanilla", "role_based", "last_round", "selective"]
+    },
+    "max_rounds": {
+      "type": "integer",
+      "description": "Maximum number of conversation rounds",
+      "minimum": 1
+    },
+    "strategy_params": {
+      "type": "object",
+      "description": "Optional parameters specific to the routing strategy",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

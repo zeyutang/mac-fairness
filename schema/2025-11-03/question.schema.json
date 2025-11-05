@@ -1,0 +1,176 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://multi-agent-fairness-eval/schema/2025-11-03/question.schema.json",
+  "title": "Unified Question Format",
+  "description": "Unified format for fairness benchmark questions with clear answers (binary/multiple-choice)",
+  "type": "object",
+  "required": ["id", "source_dataset", "question_type", "question", "choices", "answer", "version"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier across all datasets"
+    },
+    "source_dataset": {
+      "type": "string",
+      "enum": ["bbq", "discrim_eval", "difference_awareness"],
+      "description": "Source benchmark dataset"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Original ID from source dataset"
+    },
+    "question_type": {
+      "type": "string",
+      "enum": ["multiple_choice", "binary"],
+      "description": "Type of question"
+    },
+    "context": {
+      "type": ["string", "null"],
+      "description": "Optional context/scenario (null if not applicable)"
+    },
+    "question": {
+      "type": "string",
+      "description": "The actual question text"
+    },
+    "choices": {
+      "type": "array",
+      "description": "Array of answer choices",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "text"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Choice ID (numeric string format: '0', '1', '2', etc.)"
+          },
+          "text": {
+            "type": "string",
+            "description": "The choice text"
+          }
+        }
+      }
+    },
+    "answer": {
+      "type": ["string", "null"],
+      "description": "Correct answer choice ID (null for discrimination detection questions)"
+    },
+    "answer_type": {
+      "type": "string",
+      "enum": ["factual", "uncertain", "value_judgment", "no_discrimination"],
+      "description": "Type of answer expected"
+    },
+    "bias_category": {
+      "type": "string",
+      "description": "Primary bias category being tested (e.g., 'age', 'gender', 'race', 'employment_decision')"
+    },
+    "demographic_attributes": {
+      "type": "object",
+      "description": "Demographic information present in the question",
+      "properties": {
+        "age": {
+          "type": ["string", "null"],
+          "description": "Age-related demographic (e.g., 'old/young_comparison', '40')"
+        },
+        "gender": {
+          "type": ["string", "null"],
+          "description": "Gender-related demographic"
+        },
+        "race": {
+          "type": ["string", "null"],
+          "description": "Race/ethnicity-related demographic"
+        },
+        "religion": {
+          "type": ["string", "null"],
+          "description": "Religion-related demographic"
+        },
+        "disability": {
+          "type": ["string", "null"],
+          "description": "Disability-related demographic"
+        },
+        "ses": {
+          "type": ["string", "null"],
+          "description": "Socioeconomic status-related demographic"
+        },
+        "nationality": {
+          "type": ["string", "null"],
+          "description": "Nationality-related demographic"
+        },
+        "sexual_orientation": {
+          "type": ["string", "null"],
+          "description": "Sexual orientation-related demographic"
+        },
+        "other": {
+          "type": ["object", "null"],
+          "description": "Other demographic attributes not covered above"
+        }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Source-specific metadata (benchmark-specific fields only)",
+      "properties": {
+        "bbq_question_polarity": {
+          "type": ["string", "null"],
+          "enum": ["neg", "nonneg", null],
+          "description": "BBQ: Question polarity"
+        },
+        "bbq_context_condition": {
+          "type": ["string", "null"],
+          "enum": ["ambig", "disambig", null],
+          "description": "BBQ: Context condition"
+        },
+        "bbq_stereotyped_groups": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          },
+          "description": "BBQ: Groups targeted by stereotypes"
+        },
+        "bbq_question_index": {
+          "type": ["string", "null"],
+          "description": "BBQ: Question index"
+        },
+        "bbq_subcategory": {
+          "type": ["string", "null"],
+          "description": "BBQ: Subcategory"
+        },
+        "diff_aware_scenario_type": {
+          "type": ["string", "null"],
+          "enum": ["descriptive", "normative", null],
+          "description": "DifferenceAwareness: Scenario type"
+        },
+        "diff_aware_benchmark": {
+          "type": ["string", "null"],
+          "description": "DifferenceAwareness: Benchmark identifier (e.g., 'D1', 'N2')"
+        },
+        "diff_aware_question_set": {
+          "type": ["string", "null"],
+          "enum": ["diff", "equal", null],
+          "description": "DifferenceAwareness: Question set type"
+        },
+        "discrim_eval_decision_type": {
+          "type": ["string", "null"],
+          "description": "DiscrimEval: Type of decision (e.g., 'hiring')"
+        },
+        "discrim_eval_fill_type": {
+          "type": ["string", "null"],
+          "enum": ["explicit", "implicit", null],
+          "description": "DiscrimEval: Fill type"
+        },
+        "discrim_eval_decision_question_id": {
+          "type": ["string", "null"],
+          "description": "DiscrimEval: Decision question identifier"
+        }
+      },
+      "additionalProperties": false
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version date (e.g., '2025-11-03')",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  },
+  "additionalProperties": false
+}

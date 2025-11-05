@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://multi-agent-fairness-eval/schema/2025-11-03/metadata.schema.json",
+  "title": "Experiment Metadata",
+  "description": "Metadata for a single transcript in the searchable index",
+  "type": "object",
+  "required": [
+    "transcript_id",
+    "experiment_name",
+    "benchmark_name",
+    "question_id",
+    "agent_config_axes",
+    "submission_timestamp",
+    "execution_timestamp",
+    "transcript_path",
+    "config_snapshot_path",
+    "protocol_version",
+    "routing_strategy",
+    "n_agents",
+    "agents"
+  ],
+  "properties": {
+    "transcript_id": {
+      "type": "string",
+      "description": "UUID for the transcript file",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "experiment_name": {
+      "type": "string",
+      "description": "Experiment identifier following naming convention"
+    },
+    "benchmark_name": {
+      "type": "string",
+      "description": "Benchmark dataset name (e.g., 'bbq_race', 'discrim_eval_gender')"
+    },
+    "question_id": {
+      "type": "string",
+      "description": "Question identifier from the benchmark"
+    },
+    "agent_config_axes": {
+      "type": "array",
+      "description": "List of agent attributes that are varied (always includes 'as_human')",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "submission_timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp when job was submitted (Slurm) or started (local)",
+      "format": "date-time"
+    },
+    "execution_timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp when conversation actually executed",
+      "format": "date-time"
+    },
+    "transcript_path": {
+      "type": "string",
+      "description": "Absolute path to the full transcript JSON file"
+    },
+    "config_snapshot_path": {
+      "type": "string",
+      "description": "Relative path to the config snapshot YAML (under bookkeeping/)"
+    },
+    "protocol_version": {
+      "type": "string",
+      "description": "Schema version date (e.g., '2025-11-03')",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "routing_strategy": {
+      "type": "string",
+      "description": "Routing strategy used (e.g., 'vanilla', 'role_based')"
+    },
+    "n_agents": {
+      "type": "integer",
+      "description": "Number of agents in the conversation",
+      "minimum": 1
+    },
+    "shared_model_backbone": {
+      "type": ["string", "null"],
+      "description": "Model identifier if using shared backbone, null if agents use different models"
+    },
+    "agents": {
+      "type": "array",
+      "description": "Configuration of all agents in the conversation",
+      "items": {
+        "$ref": "agent.schema.json"
+      },
+      "minItems": 1
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional runtime metadata",
+      "properties": {
+        "duration_seconds": {
+          "type": "number",
+          "description": "Total conversation duration in seconds",
+          "minimum": 0
+        },
+        "total_tokens": {
+          "type": "integer",
+          "description": "Total tokens generated across all messages",
+          "minimum": 0
+        },
+        "rounds_completed": {
+          "type": "integer",
+          "description": "Number of conversation rounds completed",
+          "minimum": 0
+        },
+        "final_consensus": {
+          "type": ["number", "null"],
+          "description": "Final consensus score if applicable (0.0 to 1.0)",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
