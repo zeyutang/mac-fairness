@@ -23,20 +23,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
+from tueplots import bundles
 
 # ── style ────────────────────────────────────────────────────────────────────
 
+plt.rcParams.update(bundles.icml2024())
 plt.rcParams.update({
-    "font.family": "serif",
-    "font.size": 9,
-    "axes.titlesize": 11,
-    "axes.labelsize": 10,
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "legend.fontsize": 7.5,
     "figure.dpi": 300,
     "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.05,
+    "savefig.pad_inches": 0.02,
 })
 
 MODEL_COLORS = {
@@ -61,12 +56,12 @@ SUBCAT_SHORT = {
     "bbq_gender_identity_sampled": "Gender",
     "bbq_nationality_sampled": "Nationality",
     "bbq_physical_appearance_sampled": "Appearance",
-    "bbq_race_ethnicity_sampled": "Race/Eth.",
-    "bbq_race_x_gender_sampled": "Race×Gender",
-    "bbq_race_x_ses_sampled": "Race×SES",
+    "bbq_race_ethnicity_sampled": "Race/Eth.\\ ",
+    "bbq_race_x_gender_sampled": r"Race$\times$Gender",
+    "bbq_race_x_ses_sampled": r"Race$\times$SES",
     "bbq_religion_sampled": "Religion",
     "bbq_ses_sampled": "SES",
-    "bbq_sexual_orientation_sampled": "Sex. Orient.",
+    "bbq_sexual_orientation_sampled": "Sex.\\ Orient.",
 }
 
 MODEL_ORDER = [
@@ -115,17 +110,16 @@ def fig_accuracy_bars(df: pd.DataFrame, out_path: Path, title: str = "BBQ Accura
                label=model, color=_model_color(model), alpha=0.88,
                error_kw={"linewidth": 0.5, "capsize": 1.5, "capthick": 0.5})
 
-    ax.axhline(100 / 3, color="gray", linestyle="--", linewidth=0.6, alpha=0.5, label="Random (33%)")
+    ax.axhline(100 / 3, color="gray", linestyle="--", linewidth=0.6, alpha=0.5, label=r"Random (33\%)")
     ax.set_xticks(x)
     ax.set_xticklabels([_short_subcat(s) for s in subcats], rotation=35, ha="right")
-    ax.set_ylabel("Accuracy (%)")
+    ax.set_ylabel(r"Accuracy (\%)")
     ax.set_ylim(0, 108)
     ax.set_title(title)
     ax.legend(loc="upper left", ncol=3, framealpha=0.9, borderpad=0.3, handlelength=1.0)
     ax.grid(axis="y", alpha=0.2, linewidth=0.5)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    plt.tight_layout()
     plt.savefig(out_path)
     plt.close()
     print(f"  Saved {out_path}")
@@ -205,13 +199,12 @@ def fig_accuracy_vs_bias(df: pd.DataFrame, out_path: Path):
 
     ax.axvline(0, color="gray", linestyle=":", linewidth=0.5, alpha=0.5)
     ax.set_xlabel("Disambiguated Bias Score")
-    ax.set_ylabel("Overall Accuracy (%)")
+    ax.set_ylabel(r"Overall Accuracy (\%)")
     ax.set_title("Accuracy vs. Bias by Model")
     ax.legend(loc="lower right", fontsize=7, framealpha=0.9)
     ax.grid(alpha=0.2, linewidth=0.5)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    plt.tight_layout()
     plt.savefig(out_path)
     plt.close()
     print(f"  Saved {out_path}")
@@ -264,12 +257,11 @@ def fig_agent_comparison(baseline_df: pd.DataFrame, id_df: pd.DataFrame, va_df: 
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         if mi == 0:
-            ax.set_ylabel("Accuracy (%)")
+            ax.set_ylabel(r"Accuracy (\%)")
 
     fig.legend(*axes[0].get_legend_handles_labels(), loc="upper center", ncol=3,
                fontsize=8, framealpha=0.9, bbox_to_anchor=(0.5, 1.02))
     fig.suptitle("Baseline vs. 2-Agent Accuracy", fontsize=11, y=1.06)
-    plt.tight_layout()
     plt.savefig(out_path)
     plt.close()
     print(f"  Saved {out_path}")
@@ -312,9 +304,9 @@ def main():
         print(f"Loaded 2-agent identity: {len(id_df)} rows, vanilla: {len(va_df)} rows")
 
         fig_accuracy_bars(id_df, out_dir / f"bbq_accuracy_2agent_identity.{ext}",
-                          title="BBQ Accuracy — 2-Agent Identity Agent")
+                          title="BBQ Accuracy --- 2-Agent Identity Agent")
         fig_accuracy_bars(va_df, out_dir / f"bbq_accuracy_2agent_vanilla.{ext}",
-                          title="BBQ Accuracy — 2-Agent Vanilla Agent")
+                          title="BBQ Accuracy --- 2-Agent Vanilla Agent")
 
         if not baseline.empty:
             fig_agent_comparison(baseline, id_df, va_df, out_dir / f"bbq_agent_comparison.{ext}")
