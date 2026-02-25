@@ -16,6 +16,7 @@ dependencies = [
     "vllm>=0.15.1; sys_platform != 'darwin'",
     "ipykernel>=7.0.0; sys_platform == 'darwin'",
     "ipywidgets >= 8.1.8; sys_platform == 'darwin'",
+    "matplotlib>=3.10.8",
 ]
 
 [build-system]

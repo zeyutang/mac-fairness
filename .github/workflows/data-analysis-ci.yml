@@ -1,0 +1,33 @@
+name: Data Analysis CI
+
+on:
+  pull_request:
+    paths:
+      - 'data_analysis/**'
+      - '.github/workflows/data-analysis-ci.yml'
+  push:
+    branches:
+      - analysis/main
+    paths:
+      - 'data_analysis/**'
+      - '.github/workflows/data-analysis-ci.yml'
+
+jobs:
+  test-data-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run unit tests
+        run: make -C data_analysis test
+
+      - name: Smoke pipeline
+        run: |
+          make -C data_analysis prepare_batch HF_REVISION=a70d430 SAMPLE_JSONL=tests/fixtures/sample_hf_one_agent.jsonl RUN_LABEL=ci-smoke SCHEMA_PROFILE=one_agent
+          make -C data_analysis all

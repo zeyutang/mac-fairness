@@ -1,0 +1,17 @@
+raw/**/*.jsonl
+intermediate/**/*.jsonl
+metrics/**/*.csv
+plots/**/*.svg
+reports/**/*.md
+reports/**/*.json
+configs/runs/*.yaml
+configs/.active_run_config
+!raw/.gitkeep
+!intermediate/.gitkeep
+!metrics/.gitkeep
+!plots/.gitkeep
+!reports/.gitkeep
+!configs/runs/.gitkeep
+__pycache__/
+**/__pycache__/
+*.pyc

@@ -1,0 +1,7 @@
+{"run_id":"run1","model":"modelA","question_id":"q1","answer_before":"A","answer_after":"B","correct_answer":"B"}
+{"run_id":"run1","model":"modelA","question_id":"q2","answer_before":"A","answer_after":"A","correct_answer":"B"}
+{"run_id":"run1","model":"modelA","question_id":"q3","answer_before":"B","answer_after":"A","correct_answer":"C"}
+{"run_id":"run1","model":"modelA","question_id":"q4","answer_before":"C","answer_after":"C","correct_answer":"C"}
+{"run_id":"run2","model":"modelB","question_id":"q5","answer_before":"A","answer_after":"B","correct_answer":"B"}
+{"run_id":"run2","model":"modelB","question_id":"q6","answer_before":"B","answer_after":"B","correct_answer":"B"}
+{"run_id":"run2","model":"modelB","question_id":"q7","answer_before":"C","answer_after":"C","correct_answer":"A"}
